@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import set_seed
-from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, UNet2DConditionModel
+from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, UNet2DConditionModel, StableDiffusionPipeline
 from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version
 from huggingface_hub import HfFolder, Repository, whoami
@@ -58,6 +58,14 @@ def parse_args(input_args=None):
         default=None,
         required=True,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
+    )
+    
+    
+    parser.add_argument(
+        "--pretrained_vae_name_or_path",
+        type=str,
+        default=None,
+        help="Path to pretrained vae or vae identifier from huggingface.co/models.",
     )
     parser.add_argument(
         "--revision",
@@ -405,8 +413,9 @@ def main(args):
 
         if cur_class_images < args.num_class_images:
             torch_dtype = torch.float16 if accelerator.device.type == "cuda" else torch.float32
-            pipeline = DiffusionPipeline.from_pretrained(
+            pipeline = StableDiffusionPipeline.from_pretrained(
                 args.pretrained_model_name_or_path,
+                vae=AutoencoderKL.from_pretrained(args.pretrained_vae_name_or_path),
                 torch_dtype=torch_dtype,
                 safety_checker=None,
                 revision=args.revision,
@@ -680,7 +689,8 @@ def main(args):
 
                 if global_step % args.save_steps == 0:
                     if accelerator.is_main_process:
-                        pipeline = DiffusionPipeline.from_pretrained(
+                        pipeline = StableDiffusionPipeline.from_pretrained(
+                            vae=AutoencoderKL.from_pretrained(args.pretrained_vae_name_or_path),
                             args.pretrained_model_name_or_path,
                             unet=accelerator.unwrap_model(unet),
                             text_encoder=accelerator.unwrap_model(text_encoder),
@@ -700,7 +710,8 @@ def main(args):
 
     # Create the pipeline using using the trained modules and save it.
     if accelerator.is_main_process:
-        pipeline = DiffusionPipeline.from_pretrained(
+        pipeline = StableDiffusionPipeline.from_pretrained(
+            vae=AutoencoderKL.from_pretrained(args.pretrained_vae_name_or_path),
             args.pretrained_model_name_or_path,
             unet=accelerator.unwrap_model(unet),
             text_encoder=accelerator.unwrap_model(text_encoder),
