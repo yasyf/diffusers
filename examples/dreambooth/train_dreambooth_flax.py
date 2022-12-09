@@ -399,7 +399,7 @@ def main():
     if args.tokenizer_name:
         tokenizer = CLIPTokenizer.from_pretrained(args.tokenizer_name)
     elif args.pretrained_model_name_or_path:
-        tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
+        tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision)
 
     train_dataset = DreamBoothDataset(
         instance_data_root=args.instance_data_dir,
@@ -448,13 +448,13 @@ def main():
 
     # Load models and create wrapper for stable diffusion
     text_encoder = FlaxCLIPTextModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype
+        args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype, revision=args.revision
     )
     vae, vae_params = FlaxAutoencoderKL.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="vae", dtype=weight_dtype
+        args.pretrained_model_name_or_path, subfolder="vae", dtype=weight_dtype, revision=args.revision
     )
     unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="unet", dtype=weight_dtype
+        args.pretrained_model_name_or_path, subfolder="unet", dtype=weight_dtype, revision=args.revision
     )
 
     # Optimization
@@ -632,16 +632,13 @@ def main():
         scheduler = FlaxPNDMScheduler(
             beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", skip_prk_steps=True
         )
-        safety_checker = FlaxStableDiffusionSafetyChecker.from_pretrained(
-            "CompVis/stable-diffusion-safety-checker", from_pt=True
-        )
         pipeline = FlaxStableDiffusionPipeline(
             text_encoder=text_encoder,
             vae=vae,
             unet=unet,
             tokenizer=tokenizer,
             scheduler=scheduler,
-            safety_checker=safety_checker,
+            safety_checker=None,
             feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32"),
         )
 
