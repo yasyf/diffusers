@@ -35,7 +35,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPFeatureExtractor, CLIPTokenizer, FlaxCLIPTextModel, set_seed
 
 
-cc.initialize_cache("~/.cache/jax/compilation_cache")
+cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.10.0.dev0")
@@ -403,7 +403,9 @@ def main():
     if args.tokenizer_name:
         tokenizer = CLIPTokenizer.from_pretrained(args.tokenizer_name)
     elif args.pretrained_model_name_or_path:
-        tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision)
+        tokenizer = CLIPTokenizer.from_pretrained(
+            args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
+        )
 
     train_dataset = DreamBoothDataset(
         instance_data_root=args.instance_data_dir,
@@ -648,7 +650,7 @@ def main():
             )
             train_metrics.append(train_metric)
 
-            train_step_progress_bar.update(1)
+            train_step_progress_bar.update(jax.local_device_count())
 
             global_step += 1
             if global_step % args.save_steps == 0:
@@ -660,8 +662,6 @@ def main():
 
         train_step_progress_bar.close()
         epochs.write(f"Epoch... ({epoch + 1}/{args.num_train_epochs} | Loss: {train_metric['loss']})")
-
-
 
 
 if __name__ == "__main__":
