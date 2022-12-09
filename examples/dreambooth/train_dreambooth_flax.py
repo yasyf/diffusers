@@ -32,7 +32,7 @@ from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
 from transformers import CLIPFeatureExtractor, CLIPTokenizer, FlaxCLIPTextModel, set_seed
-
+from flax.training.checkpoints import save_checkpoint_multiprocess
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.10.0.dev0")
@@ -110,6 +110,7 @@ def parse_args():
         default="text-inversion-model",
         help="The output directory where the model predictions and checkpoints will be written.",
     )
+    parser.add_argument("--save_steps", type=int, default=150, help="Save checkpoint every X updates steps.")
     parser.add_argument("--seed", type=int, default=0, help="A seed for reproducible training.")
     parser.add_argument(
         "--resolution",
@@ -598,6 +599,34 @@ def main():
     logger.info(f"  Total train batch size (w. parallel & distributed) = {total_train_batch_size}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
 
+    def checkpoint(step):
+        # Create the pipeline using using the trained modules and save it.
+        if jax.process_index() == 0:
+            scheduler = FlaxPNDMScheduler(
+                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", skip_prk_steps=True
+            )
+            pipeline = FlaxStableDiffusionPipeline(
+                text_encoder=text_encoder,
+                vae=vae,
+                unet=unet,
+                tokenizer=tokenizer,
+                scheduler=scheduler,
+                safety_checker=None,
+                feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32"),
+            )
+
+            pipeline.save_pretrained(
+                os.path.join(args.output_dir, str(step)),
+                params={
+                    "text_encoder": get_params_to_save(text_encoder_state.params),
+                    "vae": get_params_to_save(vae_params),
+                    "unet": get_params_to_save(unet_state.params),
+                },
+            )
+
+            if args.push_to_hub:
+                repo.push_to_hub(commit_message="End of training", blocking=False, auto_lfs_prune=True)
+
     global_step = 0
 
     epochs = tqdm(range(args.num_train_epochs), desc="Epoch ... ", position=0)
@@ -619,6 +648,8 @@ def main():
             train_step_progress_bar.update(1)
 
             global_step += 1
+            if global_step % args.save_steps == 0:
+                checkpoint(global_step)
             if global_step >= args.max_train_steps:
                 break
 
@@ -627,32 +658,7 @@ def main():
         train_step_progress_bar.close()
         epochs.write(f"Epoch... ({epoch + 1}/{args.num_train_epochs} | Loss: {train_metric['loss']})")
 
-    # Create the pipeline using using the trained modules and save it.
-    if jax.process_index() == 0:
-        scheduler = FlaxPNDMScheduler(
-            beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", skip_prk_steps=True
-        )
-        pipeline = FlaxStableDiffusionPipeline(
-            text_encoder=text_encoder,
-            vae=vae,
-            unet=unet,
-            tokenizer=tokenizer,
-            scheduler=scheduler,
-            safety_checker=None,
-            feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32"),
-        )
 
-        pipeline.save_pretrained(
-            args.output_dir,
-            params={
-                "text_encoder": get_params_to_save(text_encoder_state.params),
-                "vae": get_params_to_save(vae_params),
-                "unet": get_params_to_save(unet_state.params),
-            },
-        )
-
-        if args.push_to_hub:
-            repo.push_to_hub(commit_message="End of training", blocking=False, auto_lfs_prune=True)
 
 
 if __name__ == "__main__":
