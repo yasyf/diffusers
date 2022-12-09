@@ -606,7 +606,7 @@ def main():
 
     def checkpoint(step):
         # Create the pipeline using using the trained modules and save it.
-        if jax.process_index() == 0:
+        if jax.process_index() == 0 or step >= args.max_train_steps:
             scheduler = FlaxPNDMScheduler(
                 beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", skip_prk_steps=True
             )
