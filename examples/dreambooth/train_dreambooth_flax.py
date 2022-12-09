@@ -50,6 +50,13 @@ def parse_args():
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
+        "--revision",
+        type=str,
+        default=None,
+        required=False,
+        help="Revision of pretrained model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
         "--tokenizer_name",
         type=str,
         default=None,
@@ -341,7 +348,7 @@ def main():
 
         if cur_class_images < args.num_class_images:
             pipeline, params = FlaxStableDiffusionPipeline.from_pretrained(
-                args.pretrained_model_name_or_path, safety_checker=None
+                args.pretrained_model_name_or_path, safety_checker=None, revision=args.revision
             )
             pipeline.set_progress_bar_config(disable=True)
 
