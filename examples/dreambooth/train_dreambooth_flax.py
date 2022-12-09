@@ -648,7 +648,6 @@ def main():
                 "text_encoder": get_params_to_save(text_encoder_state.params),
                 "vae": get_params_to_save(vae_params),
                 "unet": get_params_to_save(unet_state.params),
-                "safety_checker": safety_checker.params,
             },
         )
 
