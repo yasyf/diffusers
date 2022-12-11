@@ -269,7 +269,7 @@ class DreamBoothDataset(Dataset):
         )
 
     def _augment(self, path):
-        rand_transforms = transforms.compose(
+        rand_transforms = transforms.Compose(
             [
                 transforms.RandomErasing(),
                 transforms.ToPILImage(),
