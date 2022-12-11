@@ -288,7 +288,7 @@ class DreamBoothDataset(Dataset):
                             saturation=0.2 * do_augment,
                             hue=0.2 * do_augment,
                         ),
-                        transforms.RandomResizedCrop(self.size * 0.8 * do_augment),
+                        transforms.RandomResizedCrop(self.size * 0.8 + (0.2 * do_augment)),
                         transforms.RandomVerticalFlip(0.4 * do_augment),
                         transforms.RandomInvert(0.6 * do_augment),
                         transforms.RandomAdjustSharpness(2, p=0.5 * do_augment),
