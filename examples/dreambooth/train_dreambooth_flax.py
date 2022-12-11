@@ -278,7 +278,7 @@ class DreamBoothDataset(Dataset):
                     [
                         transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
                         transforms.RandomResizedCrop(self.size * 0.8),
-                        transforms.RandomVerticalFlip(0.2),
+                        transforms.RandomVerticalFlip(0.4),
                         transforms.RandomInvert(0.6),
                         transforms.RandomAdjustSharpness(2, p=0.5),
                         transforms.RandomAutocontrast(p=0.3),
@@ -286,10 +286,10 @@ class DreamBoothDataset(Dataset):
                 ),
             ]
         )
-        return rand_transforms(io.read_image(path))
+        return rand_transforms(io.read_image(str(path)))
 
     def __len__(self):
-        return self._length * 2
+        return self._length * 3
 
     @lru_cache(maxsize=None)
     def __getitem__(self, index):
