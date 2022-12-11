@@ -27,7 +27,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTextModel, CLIPTokenizer
 
 
-cc.initialize_cache("/path/to/cache/directory")
+cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 
 logger = get_logger(__name__)
 
