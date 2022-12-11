@@ -574,7 +574,6 @@ def main():
     # Initialize our training
     train_rngs = jax.random.split(rng, jax.local_device_count())
 
-    @jax.jit
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
