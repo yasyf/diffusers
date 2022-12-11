@@ -7,7 +7,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import torch
 import torch.utils.checkpoint
 from torch.utils.data import Dataset
@@ -105,6 +104,12 @@ def parse_args():
         help="Flag to add prior preservation loss.",
     )
     parser.add_argument("--prior_loss_weight", type=float, default=1.0, help="The weight of prior preservation loss.")
+    parser.add_argument(
+        "--cache_latents",
+        action="store_true",
+        help="Do not precompute and cache latents from VAE.",
+        default=True,
+    )
     parser.add_argument(
         "--num_class_images",
         type=int,
@@ -326,6 +331,18 @@ class DreamBoothDataset(Dataset):
         return example
 
 
+class LatentsDataset(Dataset):
+    def __init__(self, latents_cache, text_encoder_cache):
+        self.latents_cache = latents_cache
+        self.text_encoder_cache = text_encoder_cache
+
+    def __len__(self):
+        return len(self.latents_cache)
+
+    def __getitem__(self, index):
+        return self.latents_cache[index], self.text_encoder_cache[index]
+
+
 class PromptDataset(Dataset):
     "A simple dataset to prepare the prompts to generate class images on multiple GPUs."
 
@@ -357,6 +374,7 @@ def get_params_to_save(params):
     return jax.device_get(jax.tree_util.tree_map(lambda x: x[0], params))
 
 
+@jax.jit
 def main():
     args = parse_args()
 
@@ -406,7 +424,7 @@ def main():
                 sample_rng = jax.random.split(rng, jax.device_count())
                 images = pipeline(prompt_ids, p_params, sample_rng, jit=True).images
                 images = images.reshape((images.shape[0] * images.shape[1],) + images.shape[-3:])
-                images = pipeline.numpy_to_pil(np.array(images))
+                images = pipeline.numpy_to_pil(jnp.array(images))
 
                 for i, image in enumerate(images):
                     hash_image = hashlib.sha1(image.tobytes()).hexdigest()
@@ -505,6 +523,25 @@ def main():
         revision=args.revision,
     )
 
+    if args.cache_latents:
+        latents_cache = []
+        text_encoder_cache = []
+        for batch in tqdm(train_dataloader, desc="Caching latents"):
+            with torch.no_grad():
+                latents_cache.append(vae.encode(batch["pixel_values"]).latent_dist)
+                if args.train_text_encoder:
+                    text_encoder_cache.append(batch["input_ids"])
+                else:
+                    text_encoder_cache.append(text_encoder(batch["input_ids"])[0])
+        train_dataset = LatentsDataset(latents_cache, text_encoder_cache)
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=1, collate_fn=lambda x: x, shuffle=True
+        )
+
+        del vae
+        if not args.train_text_encoder:
+            del text_encoder
+
     # Optimization
     if args.scale_lr:
         args.learning_rate = args.learning_rate * total_train_batch_size
@@ -546,10 +583,13 @@ def main():
 
         def compute_loss(params):
             # Convert images to latent space
-            vae_outputs = vae.apply(
-                {"params": vae_params}, batch["pixel_values"], deterministic=True, method=vae.encode
-            )
-            latents = vae_outputs.latent_dist.sample(sample_rng)
+            if args.cache_latents:
+                latent_dist = batch[0][0]
+            else:
+                latent_dist = vae.apply(
+                    {"params": vae_params}, batch["pixel_values"], deterministic=True, method=vae.encode
+                ).latent_dist
+            latents = latent_dist.sample(sample_rng)
             # (NHWC) -> (NCHW)
             latents = jnp.transpose(latents, (0, 3, 1, 2))
             latents = latents * 0.18215
