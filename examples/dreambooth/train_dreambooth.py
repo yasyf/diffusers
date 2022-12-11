@@ -20,14 +20,14 @@ from accelerate.utils import set_seed
 from diffusers import AutoencoderKL, DDIMScheduler, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
 from diffusers.optimization import get_scheduler
 from huggingface_hub import HfFolder, Repository, whoami
+from jax.experimental.compilation_cache import compilation_cache as cc
 from PIL import Image
 from torchvision import transforms
 from tqdm.auto import tqdm
 from transformers import CLIPTextModel, CLIPTokenizer
 
 
-torch.backends.cudnn.benchmark = True
-
+cc.initialize_cache("/path/to/cache/directory")
 
 logger = get_logger(__name__)
 
@@ -450,7 +450,7 @@ def main():
             cur_class_images = len(list(class_images_dir.iterdir()))
 
             if cur_class_images < args.num_class_images:
-                torch_dtype = torch.float16 if accelerator.device.type == "cuda" else torch.float32
+                torch_dtype = torch.float16
                 if pipeline is None:
                     pipeline = StableDiffusionPipeline.from_pretrained(
                         args.pretrained_model_name_or_path,
@@ -475,7 +475,7 @@ def main():
 
                 sample_dataloader = accelerator.prepare(sample_dataloader)
 
-                with torch.autocast("cuda"), torch.inference_mode():
+                with torch.autocast(accelerator.device), torch.inference_mode():
                     for example in tqdm(
                         sample_dataloader,
                         desc="Generating class images",
@@ -491,8 +491,6 @@ def main():
                             image.save(image_filename)
 
         del pipeline
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     # Load the tokenizer
     if args.tokenizer_name:
@@ -637,8 +635,6 @@ def main():
         del vae
         if not args.train_text_encoder:
             del text_encoder
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
     # Scheduler and math around the number of training steps.
     overrode_max_train_steps = False
@@ -724,23 +720,21 @@ def main():
 
             if args.save_sample_prompt is not None:
                 pipeline = pipeline.to(accelerator.device)
-                g_cuda = torch.Generator(device=accelerator.device).manual_seed(args.seed)
+                g_tpu = torch.Generator(device=accelerator.device).manual_seed(args.seed)
                 pipeline.set_progress_bar_config(disable=True)
                 sample_dir = os.path.join(save_dir, "samples")
                 os.makedirs(sample_dir, exist_ok=True)
-                with torch.autocast("cuda"), torch.inference_mode():
+                with torch.autocast(accelerator.device), torch.inference_mode():
                     for i in tqdm(range(args.n_save_sample), desc="Generating samples"):
                         images = pipeline(
                             args.save_sample_prompt,
                             negative_prompt=args.save_sample_negative_prompt,
                             guidance_scale=args.save_guidance_scale,
                             num_inference_steps=args.save_infer_steps,
-                            generator=g_cuda,
+                            generator=g_tpu,
                         ).images
                         images[0].save(os.path.join(sample_dir, f"{i}.png"))
                 del pipeline
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
             print(f"[*] Weights saved at {save_dir}")
 
     # Only show the progress bar once on each machine.
