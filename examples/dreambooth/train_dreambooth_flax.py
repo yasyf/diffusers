@@ -300,7 +300,7 @@ class DreamBoothDataset(Dataset):
         return rand_transforms(io.read_image(str(path)))
 
     def __len__(self):
-        return self._length * 3
+        return self._length * 2
 
     def _instance_image(self, index):
         path = self.instance_images_path[index % self.num_instance_images]
