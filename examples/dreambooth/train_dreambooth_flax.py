@@ -528,7 +528,9 @@ def main():
         text_encoder_cache = []
         for batch in tqdm(train_dataloader, desc="Caching latents"):
             with torch.no_grad():
-                latents_cache.append(vae.encode(batch["pixel_values"]).latent_dist)
+                latents_cache.append(
+                    vae.apply({"params": vae_params}, batch["pixel_values"], method=vae.encode).latent_dist
+                )
                 if args.train_text_encoder:
                     text_encoder_cache.append(batch["input_ids"])
                 else:
