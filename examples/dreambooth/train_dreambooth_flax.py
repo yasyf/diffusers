@@ -53,6 +53,12 @@ def parse_args():
         help="Path to pretrained model or model identifier from huggingface.co/models.",
     )
     parser.add_argument(
+        "--pretrained_vae_name_or_path",
+        type=str,
+        default=None,
+        help="Path to pretrained vae or vae identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
         "--revision",
         type=str,
         default=None,
@@ -110,7 +116,6 @@ def parse_args():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="text-inversion-model",
         help="The output directory where the model predictions and checkpoints will be written.",
     )
     parser.add_argument("--save_steps", type=int, default=150, help="Save checkpoint every X updates steps.")
@@ -456,11 +461,21 @@ def main():
     text_encoder = FlaxCLIPTextModel.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype, revision=args.revision
     )
+    if args.pretrained_vae_name_or_path:
+        vae_args, vae_kwargs = (args.pretrained_vae_name_or_path, {})
+    else:
+        vae_args, vae_kwargs = (args.pretrained_model_name_or_path, {"subfolder": "vae"})
     vae, vae_params = FlaxAutoencoderKL.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="vae", dtype=weight_dtype, revision=args.revision
+        *vae_args,
+        dtype=weight_dtype,
+        revision=args.revision,
+        **vae_kwargs,
     )
     unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="unet", dtype=weight_dtype, revision=args.revision
+        args.pretrained_model_name_or_path,
+        subfolder="unet",
+        dtype=weight_dtype,
+        revision=args.revision,
     )
 
     # Optimization
