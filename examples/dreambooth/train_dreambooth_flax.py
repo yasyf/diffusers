@@ -374,7 +374,6 @@ def get_params_to_save(params):
     return jax.device_get(jax.tree_util.tree_map(lambda x: x[0], params))
 
 
-@jax.jit
 def main():
     args = parse_args()
 
@@ -575,6 +574,7 @@ def main():
     # Initialize our training
     train_rngs = jax.random.split(rng, jax.local_device_count())
 
+    @jax.jit
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
