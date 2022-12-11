@@ -406,7 +406,8 @@ def get_full_repo_name(model_id: str, organization: Optional[str] = None, token:
         return f"{organization}/{model_id}"
 
 
-def main(args):
+def main():
+    args = parse_args()
     logging_dir = Path(args.output_dir, "0", args.logging_dir)
 
     accelerator = Accelerator(
@@ -837,5 +838,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+    main()
