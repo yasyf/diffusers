@@ -30,7 +30,7 @@ from flax.training.common_utils import shard
 from huggingface_hub import HfFolder, Repository, whoami
 from jax.experimental.compilation_cache import compilation_cache as cc
 from PIL import Image
-from torchvision import transforms
+from torchvision import io, transforms
 from tqdm.auto import tqdm
 from transformers import CLIPFeatureExtractor, CLIPTokenizer, FlaxCLIPTextModel, set_seed
 
@@ -260,6 +260,7 @@ class DreamBoothDataset(Dataset):
 
         self.image_transforms = transforms.Compose(
             [
+                transforms.RandomHorizontalFlip(0.5),
                 transforms.Resize(size, interpolation=transforms.InterpolationMode.BILINEAR),
                 transforms.CenterCrop(size) if center_crop else transforms.RandomCrop(size),
                 transforms.ToTensor(),
@@ -267,14 +268,39 @@ class DreamBoothDataset(Dataset):
             ]
         )
 
+    def _augment(self, path):
+        rand_transforms = transforms.compose(
+            [
+                transforms.RandomErasing(),
+                transforms.ToPILImage(),
+                transforms.RandomOrder(
+                    [
+                        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
+                        transforms.RandomResizedCrop(self.size * 0.8),
+                        transforms.RandomVerticalFlip(0.2),
+                        transforms.RandomInvert(0.6),
+                        transforms.RandomAdjustSharpness(2, p=0.5),
+                        transforms.RandomAutoContrast(p=0.3),
+                    ]
+                ),
+            ]
+        )
+        return rand_transforms(io.read_image(path))
+
     def __len__(self):
-        return self._length
+        return self._length * 2
 
     def __getitem__(self, index):
-        example = {}
-        instance_image = Image.open(self.instance_images_path[index % self.num_instance_images])
+        path = self.instance_images_path[index % self.num_instance_images]
+        if index >= self._length - 1:
+            index = index % self._length
+            instance_image = self._augment(path)
+        else:
+            instance_image = Image.open(path)
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
+
+        example = {}
         example["instance_images"] = self.image_transforms(instance_image)
         example["instance_prompt_ids"] = self.tokenizer(
             self.instance_prompt,
