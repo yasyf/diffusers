@@ -464,11 +464,10 @@ def main():
     if args.pretrained_vae_name_or_path:
         vae_arg, vae_kwargs = (args.pretrained_vae_name_or_path, {})
     else:
-        vae_arg, vae_kwargs = (args.pretrained_model_name_or_path, {"subfolder": "vae"})
+        vae_arg, vae_kwargs = (args.pretrained_model_name_or_path, {"subfolder": "vae", "revision": args.revision})
     vae, vae_params = FlaxAutoencoderKL.from_pretrained(
         vae_arg,
         dtype=weight_dtype,
-        revision=args.revision,
         **vae_kwargs,
     )
     unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
