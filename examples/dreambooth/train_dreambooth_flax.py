@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
 import torch
 import torch.utils.checkpoint
 from torch.utils.data import Dataset
@@ -423,7 +424,7 @@ def main():
                 sample_rng = jax.random.split(rng, jax.device_count())
                 images = pipeline(prompt_ids, p_params, sample_rng, jit=True).images
                 images = images.reshape((images.shape[0] * images.shape[1],) + images.shape[-3:])
-                images = pipeline.numpy_to_pil(jnp.array(images))
+                images = pipeline.numpy_to_pil(np.array(images))
 
                 for i, image in enumerate(images):
                     hash_image = hashlib.sha1(image.tobytes()).hexdigest()
