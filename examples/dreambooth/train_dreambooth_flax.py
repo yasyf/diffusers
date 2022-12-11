@@ -3,6 +3,7 @@ import hashlib
 import logging
 import math
 import os
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -280,7 +281,7 @@ class DreamBoothDataset(Dataset):
                         transforms.RandomVerticalFlip(0.2),
                         transforms.RandomInvert(0.6),
                         transforms.RandomAdjustSharpness(2, p=0.5),
-                        transforms.RandomAutoContrast(p=0.3),
+                        transforms.RandomAutocontrast(p=0.3),
                     ]
                 ),
             ]
@@ -290,6 +291,7 @@ class DreamBoothDataset(Dataset):
     def __len__(self):
         return self._length * 2
 
+    @lru_cache(maxsize=None)
     def __getitem__(self, index):
         path = self.instance_images_path[index % self.num_instance_images]
         if index >= self._length - 1:
