@@ -297,39 +297,43 @@ class DreamBoothDataset(Dataset):
     def __len__(self):
         return self._length * 3
 
-    @lru_cache(maxsize=None)
-    def __getitem__(self, index):
+    def _instance_image(self, index):
         path = self.instance_images_path[index % self.num_instance_images]
         if index >= self._length - 1:
             index = index % self._length
             instance_image = self._augment(path)
         else:
             instance_image = Image.open(path)
+
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
 
-        example = {}
-        example["instance_images"] = self.image_transforms(instance_image)
-        example["instance_prompt_ids"] = self.tokenizer(
-            self.instance_prompt,
-            padding="do_not_pad",
-            truncation=True,
-            max_length=self.tokenizer.model_max_length,
-        ).input_ids
+        return {
+            "instance_images": self.image_transforms(instance_image),
+            "instance_prompt_ids": self.tokenizer(
+                self.instance_prompt,
+                padding="do_not_pad",
+                truncation=True,
+                max_length=self.tokenizer.model_max_length,
+            ).input_ids,
+        }
 
-        if self.class_data_root:
-            class_image = Image.open(self.class_images_path[index % self.num_class_images])
-            if not class_image.mode == "RGB":
-                class_image = class_image.convert("RGB")
-            example["class_images"] = self.image_transforms(class_image)
-            example["class_prompt_ids"] = self.tokenizer(
+    def _class_image(self, index):
+        class_image = Image.open(self.class_images_path[index % self.num_class_images])
+        if not class_image.mode == "RGB":
+            class_image = class_image.convert("RGB")
+        return {
+            "class_images": self.image_transforms(class_image),
+            "class_prompt_ids": self.tokenizer(
                 self.class_prompt,
                 padding="do_not_pad",
                 truncation=True,
                 max_length=self.tokenizer.model_max_length,
-            ).input_ids
+            ).input_ids,
+        }
 
-        return example
+    def __getitem__(self, index):
+        return {**self._instance_image(index), **self._class_image(index)}
 
 
 class LatentsDataset(Dataset):
