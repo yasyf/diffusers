@@ -462,7 +462,7 @@ def main():
         args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype, revision=args.revision
     )
     if args.pretrained_vae_name_or_path:
-        vae_arg, vae_kwargs = (args.pretrained_vae_name_or_path, {})
+        vae_arg, vae_kwargs = (args.pretrained_vae_name_or_path, {"from_pt": True})
     else:
         vae_arg, vae_kwargs = (args.pretrained_model_name_or_path, {"subfolder": "vae", "revision": args.revision})
     vae, vae_params = FlaxAutoencoderKL.from_pretrained(
