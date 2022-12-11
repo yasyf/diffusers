@@ -275,19 +275,24 @@ class DreamBoothDataset(Dataset):
             ]
         )
 
-    def _augment(self, path):
+    def _augment(self, path, do_augment: int):
         rand_transforms = transforms.Compose(
             [
-                transforms.RandomErasing(),
+                transforms.RandomErasing(p=0.5 * do_augment),
                 transforms.ToPILImage(),
                 transforms.RandomOrder(
                     [
-                        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2),
-                        transforms.RandomResizedCrop(self.size * 0.8),
-                        transforms.RandomVerticalFlip(0.4),
-                        transforms.RandomInvert(0.6),
-                        transforms.RandomAdjustSharpness(2, p=0.5),
-                        transforms.RandomAutocontrast(p=0.3),
+                        transforms.ColorJitter(
+                            brightness=0.2 * do_augment,
+                            contrast=0.2 * do_augment,
+                            saturation=0.2 * do_augment,
+                            hue=0.2 * do_augment,
+                        ),
+                        transforms.RandomResizedCrop(self.size * 0.8 * do_augment),
+                        transforms.RandomVerticalFlip(0.4 * do_augment),
+                        transforms.RandomInvert(0.6 * do_augment),
+                        transforms.RandomAdjustSharpness(2, p=0.5 * do_augment),
+                        transforms.RandomAutocontrast(p=0.3 * do_augment),
                     ]
                 ),
             ]
@@ -299,11 +304,8 @@ class DreamBoothDataset(Dataset):
 
     def _instance_image(self, index):
         path = self.instance_images_path[index % self.num_instance_images]
-        if index >= self._length - 1:
-            index = index % self._length
-            instance_image = self._augment(path)
-        else:
-            instance_image = Image.open(path)
+        do_augment, index = divmod(index, self._length)
+        instance_image = self._augment(path, do_augment=do_augment)
 
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
@@ -320,8 +322,10 @@ class DreamBoothDataset(Dataset):
 
     def _class_image(self, index):
         class_image = Image.open(self.class_images_path[index % self.num_class_images])
+
         if not class_image.mode == "RGB":
             class_image = class_image.convert("RGB")
+
         return {
             "class_images": self.image_transforms(class_image),
             "class_prompt_ids": self.tokenizer(
