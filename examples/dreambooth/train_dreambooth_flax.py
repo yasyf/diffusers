@@ -676,7 +676,7 @@ def main():
         return new_unet_state, new_text_encoder_state, metrics, new_train_rng
 
     # @jax.jit
-    def cache_image_latents(pixel_values):
+    def cache_image_latents(pixel_values, vae_params):
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             y, res = vae.apply(
@@ -686,7 +686,6 @@ def main():
                 deterministic=True,
                 capture_intermediates=True,
             )
-            jax.experimental.host_callback.id_print(y.latent_dist.__dict__)
             return res["intermediates"]["quant_conv"]["__call__"]
             jax.debug.print("D: {d}", d=y.__dict__)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
@@ -711,31 +710,43 @@ def main():
 
     # @jax.jit
     def cache_latents(batches, vae_params, text_encoder_state):
-        dprint("BATCHES", len(batches), batches[0]["pixel_values"].shape)
-        image_values = jnp.stack([b["pixel_values"] for b in batches])
-        text_values = jnp.stack([b["input_ids"] for b in batches])
+        results = []
+        for batch in batches:
+            result = {}
+            result["pixel_values"] = cache_image_latents(batch["pixel_values"], vae_params)
+            if args.train_text_encoder:
+                result["input_ids"] = batch["input_ids"]
+            else:
+                result["input_ids"] = cache_text_latents(batch["input_ids"], text_encoder_state)
+            results.append(result)
 
-        dprint("IMG CVAL CHAPE", image_values.shape)
-        image_latents = jax.vmap(cache_image_latents)(image_values)
-        jax.block_until_ready(image_latents)
-        dprint("LATENTS SHAPE", len(image_latents))
+        return results
 
-        if args.train_text_encoder:
-            text_latents = text_values
-        else:
-            text_latents = jax.vmap(cache_text_latents, in_axes=(0, None))(text_values, text_encoder_state)
+        # dprint("BATCHES", len(batches), batches[0]["pixel_values"].shape)
+        # image_values = jnp.stack([b["pixel_values"] for b in batches])
+        # text_values = jnp.stack([b["input_ids"] for b in batches])
 
-        dprint("I SHAPE", image_latents[0].shape)
-        return [{"pixel_values": i, "input_ids": t} for (i, t) in zip(image_latents, text_latents)]
+        # dprint("IMG CVAL CHAPE", image_values.shape)
+        # image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
+        # jax.block_until_ready(image_latents)
+        # dprint("LATENTS SHAPE", len(image_latents))
+
+        # if args.train_text_encoder:
+        #     text_latents = text_values
+        # else:
+        #     text_latents = jax.vmap(cache_text_latents, in_axes=(0, None))(text_values, text_encoder_state)
+
+        # dprint("I SHAPE", image_latents[0].shape)
+        # return [{"pixel_values": i, "input_ids": t} for (i, t) in zip(image_latents, text_latents)]
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    # p_cache_latents = jax.pmap(cache_latents, "batches")
+    p_cache_latents = jax.pmap(cache_latents, "batches")
 
     # Replicate the train state on each device
-    # unet_state = jax_utils.replicate(unet_state)
-    # text_encoder_state = jax_utils.replicate(text_encoder_state)
-    # vae_params = jax_utils.replicate(vae_params)
+    unet_state = jax_utils.replicate(unet_state)
+    text_encoder_state = jax_utils.replicate(text_encoder_state)
+    vae_params = jax_utils.replicate(vae_params)
 
     # Cache latents
     if args.cache_latents:
@@ -745,15 +756,14 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        latents = cache_latents(list(train_dataloader), vae_params, text_encoder_state)
-        train_dataset = LatentsDataset(latents)
-        # train_dataset = LatentsDataset([])
-        # for batch in tqdm(train_dataloader, desc="Caching latents"):
-        #     latents = cache_latents(batch, vae_params, text_encoder_state)
-        #     train_dataset += LatentsDataset(latents)
-
+        print(list(train_dataloader))
+        latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
+        jax.debug.breakpoint()
+        jax.block_until_ready(latents)
+        dprint("LATENTS SIZE", len(latents))
+        latents = jax.device_get(latents)
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
+            LatentsDataset(latents),
             batch_size=1,
             shuffle=True,
             collate_fn=xxx,
