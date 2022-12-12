@@ -743,7 +743,6 @@ def main():
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
-            collate_fn=xxx,
             shuffle=True,
         )
 
