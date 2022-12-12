@@ -279,6 +279,7 @@ class DreamBoothDataset(Dataset):
 
     def _augment(self, path, do_augment: int):
         return Image.open(path)
+        # change this to iter so we're not holding everyhing¸¸¸
         rand_transforms = transforms.Compose(
             [
                 transforms.RandomErasing(p=0.5 * do_augment),
@@ -712,10 +713,6 @@ def main():
             shuffle=True,
             collate_fn=lambda l: l[0],
         )
-
-        vae, vae_params = None, {}
-        if not args.train_text_encoder:
-            text_encoder = None
 
     # Train!
     num_update_steps_per_epoch = math.ceil(len(train_dataloader))
