@@ -753,7 +753,7 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        vals = list(d.values() for d in train_dataloader)
+        vals = [list(d.values()) for d in train_dataloader]
         jax.debug.breakpoint()
         batch = [jnp.asarray(v) for v in vals]
         jax.debug.breakpoint()
