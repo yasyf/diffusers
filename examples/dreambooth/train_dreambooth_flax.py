@@ -724,11 +724,15 @@ def main():
     if args.cache_latents:
         print("Caching latents...")
 
+        def xxx(l):
+            print("LENGTH", len(l))
+            return l
+
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
-            collate_fn=lambda l: print("LENGTH; len(l)"); l,
+            collate_fn=xxx,
             shuffle=True,
         )
 
