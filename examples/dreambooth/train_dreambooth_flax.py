@@ -742,6 +742,7 @@ def main():
             return l[0]
 
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
+        jax.debug.breakpoint()
         jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
         latents = jax.device_get(latents)
