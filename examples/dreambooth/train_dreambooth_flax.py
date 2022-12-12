@@ -659,10 +659,11 @@ def main():
         print("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             return vae.apply(
-                {"params": vae_params, "train": False},
+                {"params": vae_params},
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
+                train=False,
             ).latent_dist
 
     @jax.jit
