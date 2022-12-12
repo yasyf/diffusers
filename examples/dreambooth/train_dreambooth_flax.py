@@ -690,7 +690,7 @@ def main():
                 input_ids,
                 params=text_encoder_state.params,
                 train=False,
-            )[0]
+            )[0:1]
 
     @jax.jit
     def cache_latents(batches, vae_params, text_encoder_state):
@@ -705,7 +705,7 @@ def main():
         if args.train_text_encoder:
             text_latents = text_values
         else:
-            text_latents = jax.vmap(cache_text_latents, in_axes=(0, None), out_axes=1)(text_values, text_encoder_state)
+            text_latents = jax.vmap(cache_text_latents, in_axes=(0, None))(text_values, text_encoder_state)
 
         return (image_latents, text_latents)
 
