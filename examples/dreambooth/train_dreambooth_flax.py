@@ -698,18 +698,19 @@ def main():
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
         print(image_values.shape)
-        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
-        print(image_latents)
+        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None), out_axes=0)(image_values, vae_params)
+        print("LATENTS", image_latents)
 
         if args.train_text_encoder:
             text_latents = text_values
         else:
-            text_latents = jax.vmap(cache_text_latents, in_axes=(0, None))(text_values, text_encoder_state)
+            text_latents = jax.vmap(cache_text_latents, in_axes=(0, None), out_axes=0)(text_values, text_encoder_state)
 
         return (image_latents, text_latents)
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
+    p_cache_latents = jax.pmap(cache_latents, "batches")
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
@@ -719,7 +720,7 @@ def main():
     # Cache latents
     if args.cache_latents:
         print("Caching latents...")
-        p_cache_latents = jax.pmap(cache_latents, "batches")
+
         image_latents, text_latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
 
         train_dataset = LatentsDataset(image_latents, text_latents)
