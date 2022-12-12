@@ -689,7 +689,7 @@ def main():
 
         print("Caching latents...")
         p_cache_latents = jax.pmap(cache_latents_sharded, "batches", donate_argnums=(0,))
-        latents = p_cache_latents(shard(iter(train_dataloader)))
+        latents = p_cache_latents(shard(list(train_dataloader)))
         image_latents, text_latents = jax.utils.unzip2(latents)
 
         train_dataset = LatentsDataset(image_latents, text_latents)
