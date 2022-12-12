@@ -725,7 +725,7 @@ def main():
             LatentsDataset(latents),
             batch_size=1,
             shuffle=True,
-            collate_fn=lambda l: l,
+            collate_fn=lambda l: l[0],
         )
 
         vae, vae_params = None, {}
@@ -788,7 +788,7 @@ def main():
         train_step_progress_bar = tqdm(total=steps_per_epoch, desc="Training...", position=1, leave=False)
         # train
         for batch in train_dataloader:
-            print(batch)
+            batch = batch if args.cache_latents else shard(batch)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
