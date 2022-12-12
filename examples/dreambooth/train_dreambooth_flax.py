@@ -55,7 +55,6 @@ class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistributi
 
     @classmethod
     def from_flax(cls, instance: FlaxDiagonalGaussianDistribution):
-        print(instance.__dict__)
         return cls(**instance.__dict__)
 
 
@@ -698,13 +697,15 @@ def main():
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
         print(image_values.shape)
-        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None), out_axes=0)(image_values, vae_params)
+        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None), out_axes=None)(image_values, vae_params)
         print("LATENTS", image_latents)
 
         if args.train_text_encoder:
             text_latents = text_values
         else:
-            text_latents = jax.vmap(cache_text_latents, in_axes=(0, None), out_axes=0)(text_values, text_encoder_state)
+            text_latents = jax.vmap(cache_text_latents, in_axes=(0, None), out_axes=None)(
+                text_values, text_encoder_state
+            )
 
         return (image_latents, text_latents)
 
