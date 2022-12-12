@@ -356,15 +356,14 @@ class DreamBoothDataset(Dataset):
 
 
 class LatentsDataset(Dataset):
-    def __init__(self, latents_cache, text_encoder_cache):
-        self.latents_cache = latents_cache
-        self.text_encoder_cache = text_encoder_cache
+    def __init__(self, samples: list):
+        self.samples = samples
 
     def __len__(self):
-        return len(self.latents_cache)
+        return len(self.samples)
 
     def __getitem__(self, index):
-        return self.latents_cache[index], self.text_encoder_cache[index]
+        return self.samples[index]
 
 
 class PromptDataset(Dataset):
@@ -724,11 +723,12 @@ def main():
     if args.cache_latents:
         print("Caching latents...")
 
-        image_latents, text_latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
-
-        train_dataset = LatentsDataset(image_latents, text_latents)
+        latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=jax.local_device_count(), collate_fn=lambda x: x, shuffle=True
+            LatentsDataset(latents),
+            batch_size=jax.local_device_count(),
+            collate_fn=lambda x: x,
+            shuffle=True,
         )
 
         vae, vae_params = None, {}
