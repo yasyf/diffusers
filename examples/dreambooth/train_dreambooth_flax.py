@@ -46,6 +46,10 @@ check_min_version("0.10.0.dev0")
 logger = logging.getLogger(__name__)
 
 
+def dprint(*args):
+    jax.debug.print(" ".join(map(str, args)))
+
+
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
     mean: float = field(pytree_node=False)
     logvar: float = field(pytree_node=False)
@@ -580,7 +584,7 @@ def main():
 
     @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
-        jax.debug.print("HERE", b=batch)
+        dprint("HERE", batch)
         # Convert images to latent space
         if args.cache_latents:
             latent_dist = batch["pixel_values"]
@@ -671,7 +675,7 @@ def main():
 
     @jax.jit
     def cache_image_latents(pixel_values, vae_params):
-        jax.debug.print("IMAGE pixe", i=pixel_values.shape)
+        dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             return [
                 JaxDiagonalGaussianDistribution.from_flax(
@@ -686,7 +690,7 @@ def main():
 
     @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
-        jax.debug.print("TEXT BATCH", t=input_ids)
+        dprint("TEXT BATCH", input_ids)
         with torch.no_grad():
             return text_encoder(
                 input_ids,
@@ -696,13 +700,13 @@ def main():
 
     @jax.jit
     def cache_latents(batches, vae_params, text_encoder_state):
-        jax.debug.print("BATCHES", l=len(batches), s=batches[0]["pixel_values"].shape)
+        dprint("BATCHES", len(batches), batches[0]["pixel_values"].shape)
         image_values = jnp.stack([b["pixel_values"] for b in batches])
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
-        jax.debug.print("IMG CVAL CHAPE", s=image_values.shape)
+        dprint("IMG CVAL CHAPE", image_values.shape)
         image_latents = jax.vmap(cache_image_latents, in_axes=(0, None), out_axes=1)(image_values, vae_params)
-        jax.debug.print("LATENTS SHAPE", l=len(image_latents))
+        dprint("LATENTS SHAPE", len(image_latents))
 
         if args.train_text_encoder:
             text_latents = text_values
@@ -722,15 +726,15 @@ def main():
 
     # Cache latents
     if args.cache_latents:
-        print("Caching latents...")
+        dprint("Caching latents...")
 
         def xxx(l):
-            jax.debug.print("LENGTH", l=len(l))
+            dprint("LENGTH", len(l))
             return l
 
-        jax.debug.print("BATCH SIZE", js=jax.local_device_count())
+        dprint("BATCH SIZE", jax.local_device_count())
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
-        jax.debug.print("LATENTS SIZE", l=len(latents))
+        dprint("LATENTS SIZE", len(latents))
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
@@ -798,10 +802,10 @@ def main():
         train_step_progress_bar = tqdm(total=steps_per_epoch, desc="Training...", position=1, leave=False)
         # train
         for batch in train_dataloader:
-            jax.debug.print("DEV", d=jax.local_device_count())
-            jax.debug.print("BARCH", l=len(batch), b=batch)
+            dprint("DEV", jax.local_device_count())
+            dprint("BARCH", len(batch), batch)
             batch = shard(batch)
-            jax.debug.print("SHAT", s=batch)
+            dprint("SHAT", batch)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
