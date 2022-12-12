@@ -733,14 +733,13 @@ def main():
             dprint("LENGTH", len(l))
             return l
 
-        dprint("BATCH SIZE", jax.local_device_count())
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
         jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
         latents = jax.device_get(latents)
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
-            batch_size=jax.local_device_count(),
+            batch_size=1,
             shuffle=True,
             collate_fn=xxx,
         )
