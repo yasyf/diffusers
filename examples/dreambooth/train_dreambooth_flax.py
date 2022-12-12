@@ -692,7 +692,6 @@ def main():
             jax.block_until_ready(res)
             r = jax.device_get(res)
             jax.block_until_ready(r)
-            jax.experimental.host_callback.barrier_wait()
             print("HE", r)
             return r
 
