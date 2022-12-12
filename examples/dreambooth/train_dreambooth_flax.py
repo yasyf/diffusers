@@ -736,6 +736,7 @@ def main():
         dprint("LS", latents)
         jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
+        latents = jax.device_get(latents)
         dprint("LATENTS", latents)
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
@@ -805,9 +806,9 @@ def main():
         # train
         for batch in train_dataloader:
             dprint("DEV", jax.local_device_count())
-            dprint("BARCH", len(batch), batch[0].shape)
+            dprint("BARCH", len(batch), batch[0]["input_ids"].shape)
             batch = shard(batch)
-            dprint("BARCH", len(batch), batch[0].shape)
+            dprint("BARCH", len(batch), batch[0]["input_ids"].shape)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
