@@ -792,6 +792,7 @@ def main():
         train_step_progress_bar = tqdm(total=steps_per_epoch, desc="Training...", position=1, leave=False)
         # train
         for batch in train_dataloader:
+            print("DEV", jax.local_device_count())
             print("BARCH", len(batch), batch)
             batch = shard(batch)
             print("SHAT", batch)
