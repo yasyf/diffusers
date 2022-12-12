@@ -537,6 +537,12 @@ def main():
         text_encoder_cache = []
         for batch in tqdm(train_dataloader, desc="Caching latents"):
             with torch.no_grad():
+                import torch_xla
+                import torch_xla.core.xla_model as xm
+
+                for k in ["pixel_values", "input_ids"]:
+                    batch[k] = batch[k].to(xm.xla_device(), non_blocking=True, dtype=weight_dtype)
+
                 latents_cache.append(
                     vae.apply(
                         {"params": vae_params},
