@@ -734,8 +734,10 @@ def main():
 
         dprint("BATCH SIZE", jax.local_device_count())
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
-        latents.block_until_ready()
+        print(latents)
+        jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
+        dprint("LATENTS", latents)
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
@@ -765,7 +767,7 @@ def main():
 
     def checkpoint(step):
         # Create the pipeline using using the trained modules and save it.
-        if jax.process_index() == 0 or step >= args.max_train_steps:
+        if jax.process_index() == 0:
             scheduler = FlaxPNDMScheduler(
                 beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", skip_prk_steps=True
             )
@@ -820,6 +822,7 @@ def main():
             if global_step >= args.max_train_steps:
                 break
 
+        checkpoint(global_step)
         train_metric = jax_utils.unreplicate(train_metric)
 
         train_step_progress_bar.close()
