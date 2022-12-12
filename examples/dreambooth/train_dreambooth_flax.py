@@ -663,12 +663,12 @@ def main():
     vae_params = jax_utils.replicate(vae_params)
 
     @jax.jit
-    def cache_image_latents(batch):
-        print("IMAGE BATCH", batch)
+    def cache_image_latents(pixel_values):
+        print("IMAGE pixe", pixel_values)
         with torch.no_grad():
             return vae.apply(
                 {"params": vae_params},
-                batch["pixel_values"],
+                pixel_values,
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
@@ -685,8 +685,9 @@ def main():
         return (image_latents, text_latents)
 
     def cache_latents_sharded(batches):
-        print("BATCHES", batches)
-        return jax.vmap(cache_image_latents, in_axes={"pixel_values": None})(batches)
+        pixel_values = [b["pixel_values"] for b in batches]
+        image_latents = jax.vmap(cache_image_latents)(pixel_values)
+        print(image_latents)
 
     # Cache latents
     if args.cache_latents:
