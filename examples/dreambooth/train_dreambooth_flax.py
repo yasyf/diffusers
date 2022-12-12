@@ -663,7 +663,6 @@ def main():
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
-                train=False,
             ).latent_dist
 
     @jax.jit
