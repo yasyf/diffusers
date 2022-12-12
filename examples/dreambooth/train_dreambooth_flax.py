@@ -581,7 +581,6 @@ def main():
     # @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
         print(batch["pixel_values"].shape)
-        jax.pure_callback(lambda b: print(b["pixel_values"].shape), [], batch)
 
         # Convert images to latent space
         if args.cache_latents:
@@ -681,6 +680,7 @@ def main():
                 deterministic=True,
                 capture_intermediates=True,
             )
+            print(results["intermediates"]["quant_conv"]["__call__"][0].shape)
             return results["intermediates"]["quant_conv"]["__call__"][0]
 
     # @jax.jit
