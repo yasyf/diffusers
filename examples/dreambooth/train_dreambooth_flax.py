@@ -726,7 +726,7 @@ def main():
 
         train_dataset = LatentsDataset(image_latents, text_latents)
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=1, collate_fn=lambda x: x, shuffle=True
+            train_dataset, batch_size=jax.local_device_count(), collate_fn=lambda x: x, shuffle=True
         )
 
         vae = None
