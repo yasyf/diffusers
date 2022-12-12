@@ -23,9 +23,11 @@ from diffusers import (
     FlaxStableDiffusionPipeline,
     FlaxUNet2DConditionModel,
 )
+from diffusers.models.vae_flax import FlaxDiagonalGaussianDistribution
 from diffusers.pipelines.stable_diffusion import FlaxStableDiffusionSafetyChecker
 from diffusers.utils import check_min_version
 from flax import jax_utils
+from flax.struct import PyTreeNode
 from flax.training import train_state
 from flax.training.common_utils import shard
 from huggingface_hub import HfFolder, Repository, whoami
@@ -42,6 +44,18 @@ cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 check_min_version("0.10.0.dev0")
 
 logger = logging.getLogger(__name__)
+
+
+class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
+    mean: float
+    logvar: float
+    deterministic: bool
+    std: float
+    var: float
+
+    @classmethod
+    def from_flax(cls, instance: FlaxDiagonalGaussianDistribution):
+        return cls(**instance.__dict__)
 
 
 def parse_args():
@@ -655,15 +669,18 @@ def main():
 
         return new_unet_state, new_text_encoder_state, metrics, new_train_rng
 
+    @jax.jit
     def cache_image_latents(pixel_values, vae_params):
         print("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
-            return vae.apply(
-                {"params": vae_params},
-                pixel_values,
-                method=vae.encode,
-                deterministic=True,
-            ).latent_dist
+            return JaxDiagonalGaussianDistribution.from_flax(
+                vae.apply(
+                    {"params": vae_params},
+                    pixel_values,
+                    method=vae.encode,
+                    deterministic=True,
+                ).latent_dist
+            )
 
     @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
@@ -675,13 +692,14 @@ def main():
                 train=False,
             )[0]
 
+    @jax.jit
     def cache_latents(batches, vae_params, text_encoder_state):
         print("BATCHES", len(batches), batches[0]["pixel_values"].shape)
         image_values = jnp.stack([b["pixel_values"] for b in batches])
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
         print(image_values.shape)
-        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None), out_axes=None)(image_values, vae_params)
+        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
         print(image_latents)
 
         if args.train_text_encoder:
