@@ -696,45 +696,18 @@ def main():
                 train=False,
             )[0]
 
-    # def cache_latents(batch, vae_params, text_encoder_state):
-    #     result = {}
-    #     result["pixel_values"] = cache_image_latents(batch["pixel_values"], vae_params)
-    #     if args.train_text_encoder:
-    #         result["input_ids"] = batch["input_ids"]
-    #     else:
-    #         result["input_ids"] = cache_text_latents(batch["input_ids"], text_encoder_state)
-    #     return result
-
     # @jax.jit
     def cache_latents(batch, vae_params, text_encoder_state):
-        result = {}
-        result["pixel_values"] = cache_image_latents(batch["pixel_values"], vae_params)
-        if args.train_text_encoder:
-            result["input_ids"] = batch["input_ids"]
-        else:
-            result["input_ids"] = cache_text_latents(batch["input_ids"], text_encoder_state)
-        return result
-
-        # dprint("BATCHES", len(batches), batches[0]["pixel_values"].shape)
-        # image_values = jnp.stack([b["pixel_values"] for b in batches])
-        # text_values = jnp.stack([b["input_ids"] for b in batches])
-
-        # dprint("IMG CVAL CHAPE", image_values.shape)
-        # image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
-        # jax.block_until_ready(image_latents)
-        # dprint("LATENTS SHAPE", len(image_latents))
-
-        # if args.train_text_encoder:
-        #     text_latents = text_values
-        # else:
-        #     text_latents = jax.vmap(cache_text_latents, in_axes=(0, None))(text_values, text_encoder_state)
-
-        # dprint("I SHAPE", image_latents[0].shape)
-        # return [{"pixel_values": i, "input_ids": t} for (i, t) in zip(image_latents, text_latents)]
+        return {
+            "pixel_values": cache_image_latents(batch["pixel_values"], vae_params),
+            "input_ids": batch["input_ids"]
+            if args.train_text_encoder
+            else cache_text_latents(batch["input_ids"], text_encoder_state),
+        }
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches")
+    p_cache_latents = jax.pmap(cache_latents, "batches", donate_argnums=(0,))
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
@@ -746,31 +719,14 @@ def main():
         train_dataset = LatentsDataset([])
         for batch in tqdm(train_dataloader, desc="Caching latents"):
             latents = p_cache_latents(shard(batch), vae_params, text_encoder_state)
+            print(latents[0].shape)
             train_dataset += LatentsDataset(latents)
 
-        # dprint("Caching latents...")
-
-        # def xxx(l):
-        #     dprint("LENGTH", l)
-        #     return l[0]
-
-        # vals = jnp.stack([[d["pixel_values"], d["input_ids"]] for d in train_dataloader])
-        # jax.debug.breakpoint()
-        # batch = [jnp.array(v) for v in vals]
-        # jax.debug.breakpoint()
-        # batches = jnp.asarray(batch)
-        # jax.debug.breakpoint()
-        # print(shard(batches).shape)
-        # latents = p_cache_latents(shard(batches), vae_params, text_encoder_state)
-        # jax.debug.breakpoint()
-        # jax.block_until_ready(latents)
-        # dprint("LATENTS SIZE", len(latents))
-        # latents = jax.device_get(latents)
         train_dataloader = torch.utils.data.DataLoader(
-            LatentsDataset(latents),
+            train_dataset,
             batch_size=1,
             shuffle=True,
-            collate_fn=xxx,
+            collate_fn=lambda l: l,
         )
 
         vae, vae_params = None, {}
@@ -833,11 +789,7 @@ def main():
         train_step_progress_bar = tqdm(total=steps_per_epoch, desc="Training...", position=1, leave=False)
         # train
         for batch in train_dataloader:
-            # jax.debug.breakpoint()
-            # dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
-            # batch = shard(batch)
-            # jax.debug.breakpoint()
-            # dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
+            print(batch)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
