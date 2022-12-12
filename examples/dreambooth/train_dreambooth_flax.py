@@ -719,7 +719,7 @@ def main():
         train_dataset = LatentsDataset([])
         for batch in tqdm(train_dataloader, desc="Caching latents"):
             latents = p_cache_latents(shard(batch), vae_params, text_encoder_state)
-            print(latents[0].shape)
+            print(map(lambda x: x.shape, latents.values()))
             train_dataset += LatentsDataset(latents)
 
         train_dataloader = torch.utils.data.DataLoader(
