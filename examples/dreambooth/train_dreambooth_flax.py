@@ -3,6 +3,7 @@ import hashlib
 import logging
 import math
 import os
+import random
 from pathlib import Path
 from typing import Optional
 
@@ -284,7 +285,7 @@ class DreamBoothDataset(IterableDataset):
         return self._length
 
     def __iter__(self):
-        return (self[i] for i in range(self._length))
+        return (self[i] for i in random.sample(range(self._length), self._length))
 
     def _augment(self, path, do_augment: int):
         rand_transforms = transforms.Compose(
@@ -513,7 +514,6 @@ def main():
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=total_train_batch_size,
-        shuffle=True,
         collate_fn=collate_fn,
         drop_last=True,
     )
