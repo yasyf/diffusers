@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 def dprint(*args):
-    jax.experimental.host_callback.id_print(args)
+    print(*args)
 
 
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
@@ -734,6 +734,7 @@ def main():
 
         dprint("BATCH SIZE", jax.local_device_count())
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
+        latents.block_until_ready()
         dprint("LATENTS SIZE", len(latents))
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
