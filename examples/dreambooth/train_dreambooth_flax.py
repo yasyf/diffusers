@@ -647,7 +647,9 @@ def main():
 
     # @jax.jit
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
-        jax.debug.print("train_step: {batch}", batch=batch)
+        jax.experimental.host_callback.id_print(batch, where="train_step")
+        jax.experimental.host_callback.barrier_wait()
+
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
         params = {"vae_params": vae_params, "unet": unet_state.params}
