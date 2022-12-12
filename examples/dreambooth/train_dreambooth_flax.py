@@ -524,6 +524,8 @@ def main():
     text_encoder = FlaxCLIPTextModel.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype, revision=args.revision
     )
+    feature_extractor = CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32")
+
     if args.pretrained_vae_name_or_path:
         vae_arg, vae_kwargs = (args.pretrained_vae_name_or_path, {"from_pt": True})
     else:
@@ -734,7 +736,10 @@ def main():
         # Create the pipeline using using the trained modules and save it.
         if jax.process_index() == 0:
             scheduler = FlaxPNDMScheduler(
-                beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", skip_prk_steps=True
+                beta_start=0.00085,
+                beta_end=0.012,
+                beta_schedule="scaled_linear",
+                skip_prk_steps=True,
             )
             pipeline = FlaxStableDiffusionPipeline(
                 text_encoder=text_encoder,
@@ -743,7 +748,8 @@ def main():
                 tokenizer=tokenizer,
                 scheduler=scheduler,
                 safety_checker=None,
-                feature_extractor=CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32"),
+                feature_extractor=feature_extractor,
+                dtype=weight_dtype,
             )
 
             pipeline.save_pretrained(
@@ -780,6 +786,7 @@ def main():
 
             global_step += 1
             if global_step % args.save_steps == 0:
+                print(f"Checkpointing at step {global_step}")
                 checkpoint(global_step)
             if global_step >= args.max_train_steps:
                 break
