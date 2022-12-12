@@ -716,14 +716,14 @@ def main():
 
     # Cache latents
     if args.cache_latents:
-        train_dataset = LatentsDataset([])
+        latents = []
         for batch in tqdm(train_dataloader, desc="Caching latents"):
-            latents = p_cache_latents(shard(batch), vae_params, text_encoder_state)
-            print(list(map(lambda x: x.shape, latents.values())))
-            train_dataset += LatentsDataset(latents)
+            batch_latents = p_cache_latents(shard(batch), vae_params, text_encoder_state)
+            print(list(map(lambda x: x.shape, batch_latents.values())))
+            latents.append(batch_latents)
 
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
+            LatentsDataset(latents),
             batch_size=1,
             shuffle=True,
             collate_fn=lambda l: l,
