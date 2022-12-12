@@ -53,9 +53,9 @@ def dprint(*args):
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
     mean: float = field(pytree_node=False)
     logvar: float = field(pytree_node=False)
-    deterministic: bool = field(pytree_node=False)
     std: float = field(pytree_node=False)
     var: float = field(pytree_node=False)
+    deterministic: bool = field(pytree_node=False, default=True)
 
 
 def parse_args():
@@ -805,9 +805,9 @@ def main():
         # train
         for batch in train_dataloader:
             dprint("DEV", jax.local_device_count())
-            dprint("BARCH", len(batch), batch)
+            dprint("BARCH", len(batch), batch[0].shape)
             batch = shard(batch)
-            dprint("BARCH", len(batch), batch)
+            dprint("BARCH", len(batch), batch[0].shape)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
