@@ -753,9 +753,9 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        vals = [[d["pixel_values"], d["input_ids"]] for d in train_dataloader]
+        vals = jnp.stack([[d["pixel_values"], d["input_ids"]] for d in train_dataloader])
         jax.debug.breakpoint()
-        batch = [jnp.asarray(v) for v in vals]
+        batch = [jnp.array(v) for v in vals]
         jax.debug.breakpoint()
         batches = jnp.asarray(batch)
         jax.debug.breakpoint()
