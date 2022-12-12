@@ -580,6 +580,7 @@ def main():
 
     @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
+        print("HERE", batch)
         # Convert images to latent space
         if args.cache_latents:
             latent_dist = batch["pixel_values"]
@@ -727,7 +728,7 @@ def main():
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
-            collate_fn=lambda x: x,
+            collate_fn=lambda l: print("LENGTH; len(l)"); l,
             shuffle=True,
         )
 
@@ -793,6 +794,7 @@ def main():
         for batch in train_dataloader:
             print("BARCH", len(batch), batch)
             batch = shard(batch)
+            print("SHAT", batch)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
