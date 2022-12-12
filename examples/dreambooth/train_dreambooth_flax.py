@@ -681,7 +681,9 @@ def main():
             ).latent_dist
             res = {"mean": y.mean, "logvar": y.logvar, "std": y.std, "var": y.var}
             jax.block_until_ready(res)
-            return res
+            r = jax.device_get(r)
+            print("HE", r)
+            return r
 
     # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
