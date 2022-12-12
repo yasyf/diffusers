@@ -677,36 +677,33 @@ def main():
 
     # @jax.jit
     def cache_image_latents(pixel_values, vae_params):
-        dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
-            y, res = vae.apply(
+            _, results = vae.apply(
                 {"params": vae_params},
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
                 capture_intermediates=True,
             )
-            return res["intermediates"]["quant_conv"]["__call__"]
-            jax.debug.print("D: {d}", d=y.__dict__)
-            xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
-            jax.block_until_ready(xxx)
-            jax.experimental.host_callback.id_print(xxx, where="cache_image_latents")
-            res = jnp.asarray([0.1, 0.1, 0.1, 0.1])
-            jax.block_until_ready(res)
-            r = jax.device_get(res)
-            jax.block_until_ready(r)
-            print("HE", r)
-            return r
+            return results["intermediates"]["quant_conv"]["__call__"]
 
     # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
-        dprint("TEXT BATCH", input_ids)
         with torch.no_grad():
             return text_encoder(
                 input_ids,
                 params=text_encoder_state.params,
                 train=False,
             )[0]
+
+    # def cache_latents(batch, vae_params, text_encoder_state):
+    #     result = {}
+    #     result["pixel_values"] = cache_image_latents(batch["pixel_values"], vae_params)
+    #     if args.train_text_encoder:
+    #         result["input_ids"] = batch["input_ids"]
+    #     else:
+    #         result["input_ids"] = cache_text_latents(batch["input_ids"], text_encoder_state)
+    #     return result
 
     # @jax.jit
     def cache_latents(batches, vae_params, text_encoder_state):
@@ -741,7 +738,7 @@ def main():
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches")
+    p_cache_latents = jax.pmap(cache_latents, "batches", in_axes=1)
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
@@ -756,8 +753,7 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        print(list(train_dataloader))
-        latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
+        latents = p_cache_latents(list(train_dataloader), vae_params, text_encoder_state)
         jax.debug.breakpoint()
         jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
