@@ -745,10 +745,12 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        train_dataset = LatentsDataset([])
-        for batch in tqdm(train_dataloader, desc="Caching latents"):
-            latents = cache_latents(batch, vae_params, text_encoder_state)
-            train_dataset += LatentsDataset(latents)
+        latents = cache_latents(list(train_dataloader), vae_params, text_encoder_state)
+        train_dataset = LatentsDataset(latents)
+        # train_dataset = LatentsDataset([])
+        # for batch in tqdm(train_dataloader, desc="Caching latents"):
+        #     latents = cache_latents(batch, vae_params, text_encoder_state)
+        #     train_dataset += LatentsDataset(latents)
 
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
