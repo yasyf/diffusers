@@ -735,6 +735,8 @@ def main():
     def checkpoint(step):
         # Create the pipeline using using the trained modules and save it.
         if jax.process_index() == 0:
+            print(f"Checkpointing at step {step}...")
+
             scheduler = FlaxPNDMScheduler(
                 beta_start=0.00085,
                 beta_end=0.012,
@@ -786,16 +788,17 @@ def main():
 
             global_step += 1
             if global_step % args.save_steps == 0:
-                print(f"Checkpointing at step {global_step}")
                 checkpoint(global_step)
             if global_step >= args.max_train_steps:
                 break
 
-        checkpoint(global_step)
         train_metric = jax_utils.unreplicate(train_metric)
 
         train_step_progress_bar.close()
         epochs.write(f"Epoch... ({epoch + 1}/{args.num_train_epochs} | Loss: {train_metric['loss']})")
+
+    if global_step % args.save_steps:
+        checkpoint(global_step)
 
 
 if __name__ == "__main__":
