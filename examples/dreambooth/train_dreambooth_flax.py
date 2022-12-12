@@ -680,6 +680,7 @@ def main():
             return text_encoder(input_ids)[0]
 
     def cache_latents_sharded(batches):
+        print("BATCHES", len(batches), batches[0]["pixel_values"].shape)
         image_values = jnp.stack([b["pixel_values"] for b in batches])
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
