@@ -45,8 +45,6 @@ check_min_version("0.10.0.dev0")
 
 logger = logging.getLogger(__name__)
 
-logging.getLogger("jax").setLevel(logging.DEBUG)
-
 
 def dprint(*args):
     print(*args)
@@ -683,7 +681,9 @@ def main():
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
-            return jax.experimental.host_callback.call(lambda x: x.__dict__, y)
+            return jax.experimental.host_callback.call(
+                lambda d: [x["mean"], x["logvar"], x["std"], x["var"]], y.__dict__
+            )
             jax.debug.print("D: {d}", d=y.__dict__)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
