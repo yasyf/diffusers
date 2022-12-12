@@ -706,7 +706,7 @@ def main():
             )[0]
 
     # @jax.jit
-    def cache_latents(batches, vae_params, text_encoder_state):
+    def cache_latents(batches, vae_params, text_encoder_state, dataloader):
         dprint("BATCHES", len(batches), batches[0]["pixel_values"].shape)
         image_values = jnp.stack([b["pixel_values"] for b in batches])
         text_values = jnp.stack([b["input_ids"] for b in batches])
@@ -741,7 +741,10 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
+        print(shard(list(train_dataloader)))
+        latents = p_cache_latents(
+            shard(list(train_dataloader)), vae_params, text_encoder_state, replicate(train_dataloader)
+        )
         jax.debug.breakpoint()
         jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
