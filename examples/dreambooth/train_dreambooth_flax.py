@@ -682,8 +682,8 @@ def main():
                 deterministic=True,
                 capture_intermediates=True,
             )
-            print(y)
-            return jax.experimental.host_callback.id_print(y)
+            jax.experimental.host_callback.id_print(y.latent_dist.__dict__)
+            return y["intermediates"]["quant_conv"]["__call__"]
             jax.debug.print("D: {d}", d=y.__dict__)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
