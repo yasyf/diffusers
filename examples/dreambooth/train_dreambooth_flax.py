@@ -50,16 +50,8 @@ def dprint(*args):
     print(*args)
 
 
-class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
-    mean: float = field(pytree_node=False)
-    logvar: float = field(pytree_node=False)
-    deterministic: bool = field(pytree_node=False)
-    std: float = field(pytree_node=False)
-    var: float = field(pytree_node=False)
-
-    @classmethod
-    def from_flax(cls, instance: FlaxDiagonalGaussianDistribution):
-        return cls(**instance.__dict__)
+class JaxDiagonalGaussianDistribution(PyTreeNode):
+    dist: FlaxDiagonalGaussianDistribution = field(pytree_node=False)
 
 
 def parse_args():
@@ -678,7 +670,7 @@ def main():
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             return [
-                JaxDiagonalGaussianDistribution.from_flax(
+                JaxDiagonalGaussianDistribution(
                     vae.apply(
                         {"params": vae_params},
                         pixel_values,
