@@ -583,7 +583,7 @@ def main():
         dprint("HERE", batch)
         # Convert images to latent space
         if args.cache_latents:
-            latent_dist = batch["pixel_values"]
+            latent_dist = JaxDiagonalGaussianDistribution(*batch["pixel_values"])
         else:
             latent_dist = vae.apply(
                 {"params": params["vae_params"]}, batch["pixel_values"], deterministic=True, method=vae.encode
@@ -740,6 +740,7 @@ def main():
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
+            collate_fn=xxx,
             shuffle=True,
         )
 
