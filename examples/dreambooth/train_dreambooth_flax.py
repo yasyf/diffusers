@@ -683,7 +683,7 @@ def main():
                 deterministic=True,
             ).latent_dist
             # res = jnp.asarray([y.mean, y.logvar, y.std, y.var])
-            res = jnp.asarray([0, 0, 0, 0])
+            res = jnp.asarray([0.1, 0.1, 0.1, 0.1])
             jax.block_until_ready(res)
             r = jax.device_get(res)
             jax.block_until_ready(r)
