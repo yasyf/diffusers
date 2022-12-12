@@ -13,6 +13,7 @@ import torch.utils.checkpoint
 from torch.utils.data import Dataset
 
 import jax
+import jax.experimental.host_callback
 import jax.numpy as jnp
 import optax
 import transformers
