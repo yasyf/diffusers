@@ -719,7 +719,7 @@ def main():
         latents = []
         for batch in tqdm(train_dataloader, desc="Caching latents"):
             batch_latents = p_cache_latents(shard(batch), vae_params, text_encoder_state)
-            print(batch_latents)
+            jax.debug.breakpoint()
             latents.append(batch_latents)
 
         train_dataloader = torch.utils.data.DataLoader(
