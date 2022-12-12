@@ -581,7 +581,7 @@ def main():
     # @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
         jax.debug.print("batch: {batch}", batch=batch)
-        jax.pure_callback(print, result_shape_dtypes=[])
+        jax.pure_callback(print, result_shape_dtypes=[], batch)
         jax.effects_barrier()
 
         # Convert images to latent space
