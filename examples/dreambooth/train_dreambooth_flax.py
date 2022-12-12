@@ -50,6 +50,10 @@ def dprint(*args):
     print(*args)
 
 
+class JaxDiagonalGaussianDistribution2(PyTreeNode):
+    d: FlaxDiagonalGaussianDistribution = field(pytree_node=False)
+
+
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
     mean: float = field(pytree_node=False)
     logvar: float = field(pytree_node=False)
@@ -677,16 +681,14 @@ def main():
     def cache_image_latents(pixel_values, vae_params):
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
-            return [
-                JaxDiagonalGaussianDistribution.from_flax(
-                    vae.apply(
-                        {"params": vae_params},
-                        pixel_values,
-                        method=vae.encode,
-                        deterministic=True,
-                    ).latent_dist
-                )
-            ]
+            y = vae.apply(
+                {"params": vae_params},
+                pixel_values,
+                method=vae.encode,
+                deterministic=True,
+            ).latent_dist
+            jax.block_until_ready(y)
+            return [JaxDiagonalGaussianDistribution2(y)]
 
     # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
@@ -706,7 +708,7 @@ def main():
 
         dprint("IMG CVAL CHAPE", image_values.shape)
         image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
-        dprint("LATENTS SHAPE", len(image_latents))
+        dprint("LATENTS SHAPE", image_latents)
 
         if args.train_text_encoder:
             text_latents = text_values
