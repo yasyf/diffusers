@@ -733,7 +733,7 @@ def main():
         dprint("Caching latents...")
 
         def xxx(l):
-            dprint("LENGTH", len(l))
+            dprint("LENGTH", l)
             return l[0]
 
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
