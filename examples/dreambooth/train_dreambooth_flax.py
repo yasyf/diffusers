@@ -807,9 +807,9 @@ def main():
         # train
         for batch in train_dataloader:
             dprint("DEV", jax.local_device_count())
-            dprint("BARCH", len(batch), batch["input_ids"][0].shape)
+            dprint("BARCH", len(batch), batch["input_ids"].shape)
             batch = shard(batch)
-            dprint("BARCH", len(batch), batch["input_ids"][0].shape)
+            dprint("BARCH", len(batch), batch["input_ids"].shape)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
