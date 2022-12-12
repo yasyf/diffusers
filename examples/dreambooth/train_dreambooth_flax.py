@@ -718,7 +718,7 @@ def main():
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches", out_axes=None)
+    p_cache_latents = jax.pmap(cache_latents, "batches")
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
