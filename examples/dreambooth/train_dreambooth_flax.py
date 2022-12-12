@@ -583,7 +583,7 @@ def main():
     def compute_loss(params, dropout_rng, sample_rng, batch):
         # Convert images to latent space
         if args.cache_latents:
-            latent_dist = batch[0][0]
+            latent_dist = batch["pixel_values"]
         else:
             latent_dist = vae.apply(
                 {"params": params["vae_params"]}, batch["pixel_values"], deterministic=True, method=vae.encode
@@ -614,6 +614,8 @@ def main():
             encoder_hidden_states = text_encoder_state.apply_fn(
                 batch["input_ids"], params=params["text_encoder"], dropout_rng=dropout_rng, train=True
             )[0]
+        elif args.cache_latents:
+            encoder_hidden_states = batch["input_ids"]
         else:
             encoder_hidden_states = text_encoder(batch["input_ids"], params=text_encoder_state.params, train=False)[0]
 
@@ -707,7 +709,7 @@ def main():
         else:
             text_latents = jax.vmap(cache_text_latents, in_axes=(0, None))(text_values, text_encoder_state)
 
-        return (image_latents, text_latents)
+        return [{"pixel_values": i, "input_ids": t} for (i, t) in zip(image_latents, text_latents)]
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
@@ -729,8 +731,7 @@ def main():
             train_dataset, batch_size=jax.local_device_count(), collate_fn=lambda x: x, shuffle=True
         )
 
-        vae = None
-        vae_params = {}
+        vae, vae_params = None, {}
         if not args.train_text_encoder:
             text_encoder = None
 
