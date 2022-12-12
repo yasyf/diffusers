@@ -682,7 +682,9 @@ def main():
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
-            # res = jnp.asarray([y.mean, y.logvar, y.std, y.var])
+            xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
+            jax.block_until_ready(xxx)
+            print("XXX", xxx)
             res = jnp.asarray([0.1, 0.1, 0.1, 0.1])
             jax.block_until_ready(res)
             r = jax.device_get(res)
