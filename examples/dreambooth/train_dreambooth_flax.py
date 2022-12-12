@@ -532,38 +532,6 @@ def main():
         revision=args.revision,
     )
 
-    if args.cache_latents:
-        latents_cache = []
-        text_encoder_cache = []
-        for batch in tqdm(train_dataloader, desc="Caching latents"):
-            with torch.no_grad():
-                import torch_xla
-                import torch_xla.core.xla_model as xm
-
-                for k in ["pixel_values", "input_ids"]:
-                    batch[k] = batch[k].to(xm.xla_device(), non_blocking=True, dtype=weight_dtype)
-
-                latents_cache.append(
-                    vae.apply(
-                        {"params": vae_params},
-                        batch["pixel_values"],
-                        method=vae.encode,
-                        deterministic=True,
-                    ).latent_dist
-                )
-                if args.train_text_encoder:
-                    text_encoder_cache.append(batch["input_ids"])
-                else:
-                    text_encoder_cache.append(text_encoder(batch["input_ids"])[0])
-        train_dataset = LatentsDataset(latents_cache, text_encoder_cache)
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=1, collate_fn=lambda x: x, shuffle=True
-        )
-
-        del vae
-        if not args.train_text_encoder:
-            del text_encoder
-
     # Optimization
     if args.scale_lr:
         args.learning_rate = args.learning_rate * total_train_batch_size
@@ -595,6 +563,7 @@ def main():
     # Initialize our training
     train_rngs = jax.random.split(rng, jax.local_device_count())
 
+    @jax.jit
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
@@ -603,6 +572,7 @@ def main():
         else:
             params = {"unet": unet_state.params}
 
+        @jax.jit
         def compute_loss(params):
             # Convert images to latent space
             if args.cache_latents:
@@ -691,6 +661,50 @@ def main():
     unet_state = jax_utils.replicate(unet_state)
     text_encoder_state = jax_utils.replicate(text_encoder_state)
     vae_params = jax_utils.replicate(vae_params)
+
+    # Cache latents
+    if args.cache_latents:
+        latents_cache = []
+        text_encoder_cache = []
+
+        @jax.jit
+        def cache_latents(batch):
+            with torch.no_grad():
+                image_latents = vae.apply(
+                    {"params": vae_params},
+                    batch["pixel_values"],
+                    method=vae.encode,
+                    deterministic=True,
+                ).latent_dist
+
+                if args.train_text_encoder:
+                    text_latents = batch["input_ids"]
+                else:
+                    text_latents = text_encoder(batch["input_ids"])[0]
+
+            return (image_latents, text_latents)
+
+        def cache_latents_sharded(batches):
+            return jax.vmap(cache_latents, in_axes=0, out_axes=0)(batches)
+
+        print("Caching latents...")
+        p_cache_latents = jax.pmap(cache_latents_sharded, "batches", donate_argnums=(0,))
+        latents = p_cache_latents(shard(train_dataloader))
+        image_latents, text_latents = jax.utils.unzip2(latents)
+
+        train_dataset = LatentsDataset(image_latents, text_latents)
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=1,
+            collate_fn=lambda x: x,
+            shuffle=True,
+            pin_memory=True,
+        )
+
+        del vae, vae_params
+        vae_params = {}
+        if not args.train_text_encoder:
+            del text_encoder
 
     # Train!
     num_update_steps_per_epoch = math.ceil(len(train_dataloader))
