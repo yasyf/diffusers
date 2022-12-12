@@ -685,7 +685,7 @@ def main():
                 deterministic=True,
                 capture_intermediates=True,
             )
-            return results["intermediates"]["quant_conv"]["__call__"]
+            return results["intermediates"]["quant_conv"]["__call__"][0]
 
     # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
@@ -697,17 +697,17 @@ def main():
             )[0]
 
     # @jax.jit
-    def cache_latents(batch, vae_params, text_encoder_state):
+    def cache_latents(batch, vae_params, text_encoder_state, train_text_encoder):
         return {
             "pixel_values": cache_image_latents(batch["pixel_values"], vae_params),
             "input_ids": batch["input_ids"]
-            if args.train_text_encoder
+            if train_text_encoder
             else cache_text_latents(batch["input_ids"], text_encoder_state),
         }
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches", donate_argnums=(0,))
+    p_cache_latents = jax.pmap(cache_latents, "batches", donate_argnums=(0,), static_broadcasted_argnums=(1, 2, 3))
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
@@ -718,8 +718,7 @@ def main():
     if args.cache_latents:
         latents = []
         for batch in tqdm(train_dataloader, desc="Caching latents"):
-            batch_latents = p_cache_latents(shard(batch), vae_params, text_encoder_state)
-            jax.debug.breakpoint()
+            batch_latents = p_cache_latents(shard(batch), vae_params, text_encoder_state, args.train_text_encoder)
             latents.append(batch_latents)
 
         train_dataloader = torch.utils.data.DataLoader(
