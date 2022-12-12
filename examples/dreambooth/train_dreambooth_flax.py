@@ -713,11 +713,12 @@ def main():
         else:
             text_latents = jax.vmap(cache_text_latents, in_axes=(0, None))(text_values, text_encoder_state)
 
+        dprint("I SHAPE", image_latents[0].shape)
         return [{"pixel_values": i, "input_ids": t} for (i, t) in zip(image_latents, text_latents)]
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches")
+    p_cache_latents = jax.pmap(cache_latents, "batches", out_axes=None)
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
