@@ -682,6 +682,7 @@ def main():
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
+            jax.debug.breakpoint()
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
             print("XXX", xxx)
