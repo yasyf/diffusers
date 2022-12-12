@@ -679,9 +679,9 @@ def main():
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
-            res = {"mean": y.mean, "logvar": y.logvar, "std": y.std, "var": y.var}
+            res = jnp.asarray([y.mean, y.logvar, y.std, y.var])
             jax.block_until_ready(res)
-            r = jax.device_get(r)
+            r = jax.device_get(res)
             print("HE", r)
             return r
 
