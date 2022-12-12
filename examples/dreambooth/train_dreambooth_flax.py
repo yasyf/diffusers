@@ -662,31 +662,30 @@ def main():
     text_encoder_state = jax_utils.replicate(text_encoder_state)
     vae_params = jax_utils.replicate(vae_params)
 
+    @jax.jit
+    def cache_latents(batch):
+        print("BATCH", batch)
+        with torch.no_grad():
+            image_latents = vae.apply(
+                {"params": vae_params},
+                batch["pixel_values"],
+                method=vae.encode,
+                deterministic=True,
+            ).latent_dist
+
+            if args.train_text_encoder:
+                text_latents = batch["input_ids"]
+            else:
+                text_latents = text_encoder(batch["input_ids"])[0]
+
+        return (image_latents, text_latents)
+
+    def cache_latents_sharded(batches):
+        print("BATCHES", batches)
+        return jax.vmap(cache_latents)(batches)
+
     # Cache latents
     if args.cache_latents:
-        latents_cache = []
-        text_encoder_cache = []
-
-        @jax.jit
-        def cache_latents(batch):
-            with torch.no_grad():
-                image_latents = vae.apply(
-                    {"params": vae_params},
-                    batch["pixel_values"],
-                    method=vae.encode,
-                    deterministic=True,
-                ).latent_dist
-
-                if args.train_text_encoder:
-                    text_latents = batch["input_ids"]
-                else:
-                    text_latents = text_encoder(batch["input_ids"])[0]
-
-            return (image_latents, text_latents)
-
-        def cache_latents_sharded(batches):
-            return jax.vmap(cache_latents, in_axes=0, out_axes=0)(batches)
-
         print("Caching latents...")
         p_cache_latents = jax.pmap(cache_latents_sharded, "batches", donate_argnums=(0,))
         latents = p_cache_latents(shard(list(train_dataloader)))
