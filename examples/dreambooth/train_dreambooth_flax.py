@@ -716,7 +716,7 @@ def main():
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
         dprint("IMG CVAL CHAPE", image_values.shape)
-        image_latents = jax.vmap(cache_image_latents, in_axes=0)(image_values)
+        image_latents = jax.vmap(cache_image_latents)(image_values)
         jax.block_until_ready(image_latents)
         dprint("LATENTS SHAPE", len(image_latents))
 
@@ -733,9 +733,9 @@ def main():
     # p_cache_latents = jax.pmap(cache_latents, "batches")
 
     # Replicate the train state on each device
-    unet_state = jax_utils.replicate(unet_state)
-    text_encoder_state = jax_utils.replicate(text_encoder_state)
-    vae_params = jax_utils.replicate(vae_params)
+    # unet_state = jax_utils.replicate(unet_state)
+    # text_encoder_state = jax_utils.replicate(text_encoder_state)
+    # vae_params = jax_utils.replicate(vae_params)
 
     # Cache latents
     if args.cache_latents:
