@@ -680,8 +680,8 @@ def main():
             return text_encoder(input_ids)[0]
 
     def cache_latents_sharded(batches):
-        image_values = jnp.asarray([b["pixel_values"] for b in batches])
-        text_values = jnp.asarray([b["input_ids"] for b in batches])
+        image_values = jnp.stack([b["pixel_values"] for b in batches])
+        text_values = jnp.stack([b["input_ids"] for b in batches])
 
         print(image_values.shape)
         image_latents = jax.vmap(cache_image_latents)(image_values)
