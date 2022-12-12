@@ -673,17 +673,23 @@ def main():
                 deterministic=True,
             ).latent_dist
 
+    @jax.jit
+    def cache_text_latents(input_ids):
+        print("TEXT BATCH", input_ids)
+        with torch.no_grad():
+            return text_encoder(input_ids)[0]
+
     def cache_latents_sharded(batches):
         image_values = [b["pixel_values"] for b in batches]
         text_values = [b["input_ids"] for b in batches]
 
-        image_latents = jax.vmap(cache_image_latents, in_axes=0, out_axes=0)(image_values)
+        image_latents = jax.vmap(cache_image_latents, in_axis=1)(image_values)
+        print(image_latents)
 
         if args.train_text_encoder:
             text_latents = text_values
         else:
-            with torch.no_grad():
-                text_latents = text_encoder(text_values)
+            text_latents = jax.vmap(cache_text_latents, in_axis=1)(text_values)
 
         return (image_latents, text_latents)
 
