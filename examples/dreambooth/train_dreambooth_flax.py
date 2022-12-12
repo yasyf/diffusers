@@ -682,7 +682,7 @@ def main():
 
     def cache_latents_sharded(batches):
         print("BATCHES", batches)
-        return jax.vmap(cache_latents)(batches)
+        return jax.vmap(cache_latents, axis_name="batch")(batches)
 
     # Cache latents
     if args.cache_latents:
