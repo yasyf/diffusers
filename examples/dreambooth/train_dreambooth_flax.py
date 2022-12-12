@@ -706,18 +706,14 @@ def main():
     #     return result
 
     # @jax.jit
-    def cache_latents(batches, vae_params, text_encoder_state):
-        results = []
-        for batch in batches:
-            result = {}
-            result["pixel_values"] = cache_image_latents(batch["pixel_values"], vae_params)
-            if args.train_text_encoder:
-                result["input_ids"] = batch["input_ids"]
-            else:
-                result["input_ids"] = cache_text_latents(batch["input_ids"], text_encoder_state)
-            results.append(result)
-
-        return results
+    def cache_latents(batch, vae_params, text_encoder_state):
+        result = {}
+        result["pixel_values"] = cache_image_latents(batch["pixel_values"], vae_params)
+        if args.train_text_encoder:
+            result["input_ids"] = batch["input_ids"]
+        else:
+            result["input_ids"] = cache_text_latents(batch["input_ids"], text_encoder_state)
+        return result
 
         # dprint("BATCHES", len(batches), batches[0]["pixel_values"].shape)
         # image_values = jnp.stack([b["pixel_values"] for b in batches])
