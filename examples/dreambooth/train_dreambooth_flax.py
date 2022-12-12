@@ -109,7 +109,7 @@ def parse_args():
         "--cache_latents",
         action="store_true",
         help="Do not precompute and cache latents from VAE.",
-        default=True,
+        default=False,
     )
     parser.add_argument(
         "--num_class_images",
