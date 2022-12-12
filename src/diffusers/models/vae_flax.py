@@ -680,26 +680,6 @@ class FlaxDecoder(nn.Module):
         return sample
 
 
-class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
-    mean: float
-    logvar: float
-    deterministic: jnp.bool_
-    std: float
-    var: float
-
-    @classmethod
-    def create(cls, parameters: jnp.ndarray, deterministic: jnp.bool_):
-        # Last axis to account for channels-last
-        mean, logvar = jnp.split(parameters, 2, axis=-1)
-        logvar = jnp.clip(logvar, -30.0, 20.0)
-        deterministic = deterministic
-        std = jnp.exp(0.5 * logvar)
-        var = jnp.exp(logvar)
-        if deterministic:
-            var = std = jnp.zeros_like(mean)
-        return cls(mean, logvar, deterministic, std, var)
-
-
 class FlaxDiagonalGaussianDistribution(object):
     def __init__(self, parameters, deterministic=False):
         # Last axis to account for channels-last
