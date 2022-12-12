@@ -682,6 +682,7 @@ def main():
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
+            jax.debug.print(y)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
             jax.experimental.host_callback.id_print(xxx, where="cache_image_latents")
