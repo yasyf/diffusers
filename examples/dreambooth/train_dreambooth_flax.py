@@ -731,7 +731,7 @@ def main():
 
         def xxx(l):
             dprint("LENGTH", len(l))
-            return l
+            return l[0]
 
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
         jax.block_until_ready(latents)
@@ -805,9 +805,10 @@ def main():
         # train
         for batch in train_dataloader:
             jax.debug.breakpoint()
-            dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
+            # dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
             batch = shard(batch)
-            dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
+            jax.debug.breakpoint()
+            # dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
             )
