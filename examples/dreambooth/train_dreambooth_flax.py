@@ -671,14 +671,16 @@ def main():
     def cache_image_latents(pixel_values, vae_params):
         print("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
-            return JaxDiagonalGaussianDistribution.from_flax(
-                vae.apply(
-                    {"params": vae_params},
-                    pixel_values,
-                    method=vae.encode,
-                    deterministic=True,
-                ).latent_dist
-            )
+            return [
+                JaxDiagonalGaussianDistribution.from_flax(
+                    vae.apply(
+                        {"params": vae_params},
+                        pixel_values,
+                        method=vae.encode,
+                        deterministic=True,
+                    ).latent_dist
+                )
+            ]
 
     @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
