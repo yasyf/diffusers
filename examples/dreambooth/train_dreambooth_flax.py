@@ -663,26 +663,30 @@ def main():
     vae_params = jax_utils.replicate(vae_params)
 
     @jax.jit
-    def cache_latents(batch):
-        print("BATCH", batch)
+    def cache_image_latents(batch):
+        print("IMAGE BATCH", batch)
         with torch.no_grad():
-            image_latents = vae.apply(
+            return vae.apply(
                 {"params": vae_params},
                 batch["pixel_values"],
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
 
+    @jax.jit
+    def cache_text_latents(batch):
+        print("TEXT BATCH", batch)
+        with torch.no_grad():
             if args.train_text_encoder:
-                text_latents = batch["input_ids"]
+                return batch["input_ids"]
             else:
-                text_latents = text_encoder(batch["input_ids"])[0]
+                return text_encoder(batch["input_ids"])[0]
 
         return (image_latents, text_latents)
 
     def cache_latents_sharded(batches):
         print("BATCHES", batches)
-        return jax.vmap(cache_latents, in_axes=1, axis_name="batch")(batches)
+        return jax.vmap(cache_image_latents, in_axes={"pixel_values": None})(batches)
 
     # Cache latents
     if args.cache_latents:
