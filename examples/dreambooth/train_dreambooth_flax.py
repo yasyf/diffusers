@@ -3,7 +3,6 @@ import hashlib
 import logging
 import math
 import os
-from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -581,6 +580,10 @@ def main():
 
     # @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
+        jax.debug.print("batch: {batch}")
+        jax.pure_callback(print, result_shape_dtypes=[])
+        jax.effects_barrier()
+
         # Convert images to latent space
         if args.cache_latents:
             latent_dist = JaxDiagonalGaussianDistribution(*batch["pixel_values"])
@@ -648,9 +651,6 @@ def main():
 
     # @jax.jit
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
-        jax.experimental.host_callback.id_print(batch, where="train_step")
-        jax.experimental.host_callback.barrier_wait()
-
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
         params = {"vae_params": vae_params, "unet": unet_state.params}
