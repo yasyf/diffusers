@@ -305,7 +305,7 @@ class DreamBoothDataset(Dataset):
 
     def _instance_image(self, index):
         path = self.instance_images_path[index % self.num_instance_images]
-        do_augment, index = divmod(index, self._length)
+        do_augment, index = divmod(index, self.num_instance_images)
         instance_image = self._augment(path, do_augment=do_augment)
 
         if not instance_image.mode == "RGB":
@@ -538,7 +538,12 @@ def main():
         for batch in tqdm(train_dataloader, desc="Caching latents"):
             with torch.no_grad():
                 latents_cache.append(
-                    vae.apply({"params": vae_params}, batch["pixel_values"], method=vae.encode).latent_dist
+                    vae.apply(
+                        {"params": vae_params},
+                        batch["pixel_values"],
+                        method=vae.encode,
+                        deterministic=True,
+                    ).latent_dist
                 )
                 if args.train_text_encoder:
                     text_encoder_cache.append(batch["input_ids"])
