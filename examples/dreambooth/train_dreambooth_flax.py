@@ -580,7 +580,7 @@ def main():
 
     # @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
-        dprint("HERE", batch)
+        jax.debug.breakpoint()
         # Convert images to latent space
         if args.cache_latents:
             latent_dist = JaxDiagonalGaussianDistribution(*batch["pixel_values"])
