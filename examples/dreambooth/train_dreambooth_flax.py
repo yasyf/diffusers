@@ -46,10 +46,6 @@ check_min_version("0.10.0.dev0")
 logger = logging.getLogger(__name__)
 
 
-def dprint(*args):
-    print(*args)
-
-
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
     mean: float = field(pytree_node=False)
     logvar: float = field(pytree_node=False)
@@ -584,6 +580,7 @@ def main():
 
     # @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
+        print(batch["pixel_values"].shape)
         jax.pure_callback(lambda b: print(b["pixel_values"].shape), [], batch)
 
         # Convert images to latent space
@@ -706,7 +703,7 @@ def main():
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches", donate_argnums=(0,), static_broadcasted_argnums=(3,))
+    p_cache_latents = jax.pmap(cache_latents, "batch", donate_argnums=(0,), static_broadcasted_argnums=(3,))
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
