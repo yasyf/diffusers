@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 import torch
 import torch.utils.checkpoint
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 
 import jax
 import jax.experimental.host_callback
@@ -141,6 +141,7 @@ def parse_args():
     parser.add_argument(
         "--center_crop", action="store_true", help="Whether to center crop images before resizing to resolution"
     )
+    parser.add_argument("--augment_images", action="store_true", help="Apply random data augmentations.")
     parser.add_argument("--train_text_encoder", action="store_true", help="Whether to train the text encoder")
     parser.add_argument(
         "--train_batch_size", type=int, default=4, help="Batch size (per device) for the training dataloader."
@@ -228,7 +229,7 @@ def parse_args():
     return args
 
 
-class DreamBoothDataset(Dataset):
+class DreamBoothDataset(IterableDataset):
     """
     A dataset to prepare the instance and class images with the prompts for fine-tuning the model.
     It pre-processes the images and the tokenizes prompts.
@@ -243,9 +244,11 @@ class DreamBoothDataset(Dataset):
         class_prompt=None,
         size=512,
         center_crop=False,
+        augment_images=False,
     ):
         self.size = size
         self.center_crop = center_crop
+        self.augment_images = augment_images
         self.tokenizer = tokenizer
 
         self.instance_data_root = Path(instance_data_root)
@@ -277,9 +280,13 @@ class DreamBoothDataset(Dataset):
             ]
         )
 
+    def __len__(self):
+        return self._length
+
+    def __iter__(self):
+        return (self[i] for i in range(self._length))
+
     def _augment(self, path, do_augment: int):
-        return Image.open(path)
-        # change this to iter so we're not holding everyhing¸¸¸
         rand_transforms = transforms.Compose(
             [
                 transforms.RandomErasing(p=0.5 * do_augment),
@@ -292,7 +299,7 @@ class DreamBoothDataset(Dataset):
                             saturation=0.2 * do_augment,
                             hue=0.2 * do_augment,
                         ),
-                        transforms.RandomResizedCrop(self.size * 0.8 + (0.2 * do_augment)),
+                        transforms.RandomResizedCrop(self.size * (0.8 + (0.2 * do_augment))),
                         transforms.RandomVerticalFlip(0.4 * do_augment),
                         transforms.RandomInvert(0.6 * do_augment),
                         transforms.RandomAdjustSharpness(2, p=0.5 * do_augment),
@@ -303,13 +310,10 @@ class DreamBoothDataset(Dataset):
         )
         return rand_transforms(io.read_image(str(path)))
 
-    def __len__(self):
-        return self._length
-
     def _instance_image(self, index):
         path = self.instance_images_path[index % self.num_instance_images]
         do_augment, index = divmod(index, self.num_instance_images)
-        instance_image = self._augment(path, do_augment=do_augment)
+        instance_image = self._augment(path, do_augment=do_augment) if self.augment_images else Image.open(path)
 
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
