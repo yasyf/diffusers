@@ -683,6 +683,7 @@ def main():
             res = jnp.asarray([0, 0, 0, 0])
             jax.block_until_ready(res)
             r = jax.device_get(res)
+            jax.block_until_ready(r)
             print("HE", r)
             return r
 
@@ -736,10 +737,12 @@ def main():
         jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
         latents = jax.device_get(latents)
+        dprint("LATENTS", latents)
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
             shuffle=True,
+            collate_fn=xxx,
         )
 
         vae, vae_params = None, {}
