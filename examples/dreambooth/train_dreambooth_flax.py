@@ -705,7 +705,7 @@ def main():
         dprint("IMG CVAL CHAPE", image_values.shape)
         image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
         jax.block_until_ready(image_latents)
-        dprint("LATENTS SHAPE", image_latents)
+        dprint("LATENTS SHAPE", len(image_latents))
 
         if args.train_text_encoder:
             text_latents = text_values
@@ -741,7 +741,6 @@ def main():
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=jax.local_device_count(),
-            collate_fn=xxx,
             shuffle=True,
         )
 
