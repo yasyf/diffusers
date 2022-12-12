@@ -27,7 +27,7 @@ from diffusers.models.vae_flax import FlaxDiagonalGaussianDistribution
 from diffusers.pipelines.stable_diffusion import FlaxStableDiffusionSafetyChecker
 from diffusers.utils import check_min_version
 from flax import jax_utils
-from flax.struct import PyTreeNode
+from flax.struct import PyTreeNode, field
 from flax.training import train_state
 from flax.training.common_utils import shard
 from huggingface_hub import HfFolder, Repository, whoami
@@ -47,11 +47,11 @@ logger = logging.getLogger(__name__)
 
 
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
-    mean: float = struct.field(pytree_node=False)
-    logvar: float = struct.field(pytree_node=False)
-    deterministic: bool = struct.field(pytree_node=False)
-    std: float = struct.field(pytree_node=False)
-    var: float = struct.field(pytree_node=False)
+    mean: float = field(pytree_node=False)
+    logvar: float = field(pytree_node=False)
+    deterministic: bool = field(pytree_node=False)
+    std: float = field(pytree_node=False)
+    var: float = field(pytree_node=False)
 
     @classmethod
     def from_flax(cls, instance: FlaxDiagonalGaussianDistribution):
