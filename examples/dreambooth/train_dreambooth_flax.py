@@ -4,6 +4,7 @@ import logging
 import math
 import os
 import random
+from functools import partial
 from pathlib import Path
 from typing import Optional
 
@@ -577,7 +578,7 @@ def main():
     # Initialize our training
     train_rngs = jax.random.split(rng, jax.local_device_count())
 
-    # @jax.jit
+    @partial(jax.jit, donate_argnums=(1, 2, 3))
     def compute_loss(params, dropout_rng, sample_rng, batch):
         # Convert images to latent space
         if args.cache_latents:
@@ -644,7 +645,7 @@ def main():
 
         return loss
 
-    # @jax.jit
+    @partial(jax.jit, donate_argnums=(0, 1, 3, 4))
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
@@ -698,7 +699,7 @@ def main():
         }
 
     # Create parallel version of the train step
-    p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
+    p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 3, 4))
     p_cache_latents = jax.pmap(cache_latents, "batch", donate_argnums=(0,), static_broadcasted_argnums=(3,))
 
     # Replicate the train state on each device
