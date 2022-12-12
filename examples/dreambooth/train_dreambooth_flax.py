@@ -701,6 +701,7 @@ def main():
 
         dprint("IMG CVAL CHAPE", image_values.shape)
         image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
+        jax.block_until_ready(image_latents)
         dprint("LATENTS SHAPE", image_latents)
 
         if args.train_text_encoder:
@@ -729,7 +730,7 @@ def main():
 
         dprint("BATCH SIZE", jax.local_device_count())
         latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
-        print(latents)
+        dprint("LS", latents)
         jax.block_until_ready(latents)
         dprint("LATENTS SIZE", len(latents))
         dprint("LATENTS", latents)
