@@ -806,8 +806,9 @@ def main():
         train_step_progress_bar = tqdm(total=steps_per_epoch, desc="Training...", position=1, leave=False)
         # train
         for batch in train_dataloader:
+            jax.debug.breakpoint()
             dprint("DEV", jax.local_device_count())
-            dprint("BARCH", len(batch), batch["input_ids"].shape)
+            dprint("BARCH", len(batch), batch)
             batch = shard(batch)
             dprint("BARCH", len(batch), batch["input_ids"].shape)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
