@@ -46,14 +46,6 @@ check_min_version("0.10.0.dev0")
 logger = logging.getLogger(__name__)
 
 
-class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
-    mean: float = field(pytree_node=False)
-    logvar: float = field(pytree_node=False)
-    std: float = field(pytree_node=False)
-    var: float = field(pytree_node=False)
-    deterministic: bool = field(pytree_node=False, default=True)
-
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Simple example of a training script.")
     parser.add_argument(
@@ -584,7 +576,7 @@ def main():
 
         # Convert images to latent space
         if args.cache_latents:
-            latent_dist = JaxDiagonalGaussianDistribution(*batch["pixel_values"])
+            latent_dist = FlaxDiagonalGaussianDistribution(batch["pixel_values"], deterministic=True)
         else:
             latent_dist = vae.apply(
                 {"params": params["vae_params"]}, batch["pixel_values"], deterministic=True, method=vae.encode
@@ -680,6 +672,7 @@ def main():
                 deterministic=True,
                 capture_intermediates=True,
             )
+            print(len(results["intermediates"]["quant_conv"]["__call__"]))
             print(results["intermediates"]["quant_conv"]["__call__"][0].shape)
             return results["intermediates"]["quant_conv"]["__call__"][0]
 
