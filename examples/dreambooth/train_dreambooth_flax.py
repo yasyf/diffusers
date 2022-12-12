@@ -584,7 +584,6 @@ def main():
     def compute_loss(params, dropout_rng, sample_rng, batch):
         jax.debug.print("batch: {batch}", batch=batch)
         jax.pure_callback(print, [], batch)
-        jax.effects_barrier()
 
         # Convert images to latent space
         if args.cache_latents:
@@ -684,6 +683,7 @@ def main():
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
+            return jax.experimental.host_callback.call(lambda x: x.__dict__, y)
             jax.debug.print("D: {d}", d=y.__dict__)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
