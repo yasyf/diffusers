@@ -50,20 +50,12 @@ def dprint(*args):
     print(*args)
 
 
-class JaxDiagonalGaussianDistribution2(PyTreeNode):
-    d: FlaxDiagonalGaussianDistribution = field(pytree_node=False)
-
-
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
     mean: float = field(pytree_node=False)
     logvar: float = field(pytree_node=False)
     deterministic: bool = field(pytree_node=False)
     std: float = field(pytree_node=False)
     var: float = field(pytree_node=False)
-
-    @classmethod
-    def from_flax(cls, instance: FlaxDiagonalGaussianDistribution):
-        return cls(**instance.__dict__)
 
 
 def parse_args():
@@ -686,9 +678,10 @@ def main():
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
-            ).latent_dist
+            ).latent_dist.__dict__
+            print(y)
             jax.block_until_ready(y)
-            return [JaxDiagonalGaussianDistribution2(y)]
+            return y
 
     # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
@@ -807,6 +800,8 @@ def main():
         # train
         for batch in train_dataloader:
             dprint("DEV", jax.local_device_count())
+            dprint("BARCH", len(batch), batch)
+            batch = shard(batch)
             dprint("BARCH", len(batch), batch)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
