@@ -580,7 +580,6 @@ def main():
 
     # @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
-        jax.debug.breakpoint()
         # Convert images to latent space
         if args.cache_latents:
             latent_dist = JaxDiagonalGaussianDistribution(*batch["pixel_values"])
@@ -648,6 +647,7 @@ def main():
 
     # @jax.jit
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
+        jax.debug.breakpoint()
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
         params = {"vae_params": vae_params, "unet": unet_state.params}
@@ -804,7 +804,7 @@ def main():
         train_step_progress_bar = tqdm(total=steps_per_epoch, desc="Training...", position=1, leave=False)
         # train
         for batch in train_dataloader:
-            jax.debug.breakpoint()
+            # jax.debug.breakpoint()
             # dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
             # batch = shard(batch)
             # jax.debug.breakpoint()
