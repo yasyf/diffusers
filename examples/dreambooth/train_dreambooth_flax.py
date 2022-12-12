@@ -680,7 +680,7 @@ def main():
             return [
                 JaxDiagonalGaussianDistribution.from_flax(
                     vae.apply(
-                        {"params": vae_params},
+                        {"params": jax_utils.unreplicate(vae_params)},
                         pixel_values,
                         method=vae.encode,
                         deterministic=True,
