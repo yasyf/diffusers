@@ -676,7 +676,7 @@ def main():
         return new_unet_state, new_text_encoder_state, metrics, new_train_rng
 
     # @jax.jit
-    def cache_image_latents(pixel_values, vae_params):
+    def cache_image_latents(pixel_values):
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             y, res = vae.apply(
