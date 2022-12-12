@@ -669,6 +669,7 @@ def main():
     def cache_image_latents(pixel_values, vae_params):
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
+            return "foobar"
             return [
                 JaxDiagonalGaussianDistribution(
                     vae.apply(
