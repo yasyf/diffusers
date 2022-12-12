@@ -466,6 +466,8 @@ def main():
         tokenizer = CLIPTokenizer.from_pretrained(
             args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
         )
+    else:
+        raise NotImplementedError()
 
     train_dataset = DreamBoothDataset(
         instance_data_root=args.instance_data_dir,
@@ -658,12 +660,14 @@ def main():
     def cache_image_latents(pixel_values, vae_params):
         print("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
-            return vae.apply(
+            val = vae.apply(
                 {"params": vae_params},
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
+            print("VAL", val)
+            return val
 
     @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
@@ -711,10 +715,10 @@ def main():
             train_dataset, batch_size=1, collate_fn=lambda x: x, shuffle=True
         )
 
-        del vae, vae_params
+        vae = None
         vae_params = {}
         if not args.train_text_encoder:
-            del text_encoder
+            text_encoder = None
 
     # Train!
     num_update_steps_per_epoch = math.ceil(len(train_dataloader))
