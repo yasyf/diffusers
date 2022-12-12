@@ -806,8 +806,8 @@ def main():
         for batch in train_dataloader:
             jax.debug.breakpoint()
             # dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
-            batch = shard(batch)
-            jax.debug.breakpoint()
+            # batch = shard(batch)
+            # jax.debug.breakpoint()
             # dprint("BARCH", len(batch), batch[0]["pixel_values"].shape)
             unet_state, text_encoder_state, train_metric, train_rngs = p_train_step(
                 unet_state, text_encoder_state, vae_params, batch, train_rngs
