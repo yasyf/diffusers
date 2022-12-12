@@ -689,16 +689,12 @@ def main():
 
         print("Caching latents...")
         p_cache_latents = jax.pmap(cache_latents_sharded, "batches", donate_argnums=(0,))
-        latents = p_cache_latents(shard(train_dataloader))
+        latents = p_cache_latents(shard(iter(train_dataloader)))
         image_latents, text_latents = jax.utils.unzip2(latents)
 
         train_dataset = LatentsDataset(image_latents, text_latents)
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset,
-            batch_size=1,
-            collate_fn=lambda x: x,
-            shuffle=True,
-            pin_memory=True,
+            train_dataset, batch_size=1, collate_fn=lambda x: x, shuffle=True
         )
 
         del vae, vae_params
