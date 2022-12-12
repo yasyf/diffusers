@@ -47,11 +47,11 @@ logger = logging.getLogger(__name__)
 
 
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
-    mean: float
-    logvar: float
-    deterministic: bool
-    std: float
-    var: float
+    mean: float = struct.field(pytree_node=False)
+    logvar: float = struct.field(pytree_node=False)
+    deterministic: bool = struct.field(pytree_node=False)
+    std: float = struct.field(pytree_node=False)
+    var: float = struct.field(pytree_node=False)
 
     @classmethod
     def from_flax(cls, instance: FlaxDiagonalGaussianDistribution):
@@ -719,7 +719,7 @@ def main():
     # Cache latents
     if args.cache_latents:
         print("Caching latents...")
-        p_cache_latents = jax.pmap(cache_latents, "batches", donate_argnums=(0,))
+        p_cache_latents = jax.pmap(cache_latents, "batches")
         image_latents, text_latents = p_cache_latents(shard(list(train_dataloader)), vae_params, text_encoder_state)
 
         train_dataset = LatentsDataset(image_latents, text_latents)
