@@ -664,7 +664,7 @@ def main():
 
     @jax.jit
     def cache_image_latents(pixel_values):
-        print("IMAGE pixe", pixel_values)
+        print("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             return vae.apply(
                 {"params": vae_params},
@@ -683,7 +683,8 @@ def main():
         image_values = jnp.asarray([b["pixel_values"] for b in batches])
         text_values = jnp.asarray([b["input_ids"] for b in batches])
 
-        image_latents = jax.vmap(cache_image_latents, in_axes=0)(image_values)
+        print(image_values.shape)
+        image_latents = jax.vmap(cache_image_latents)(image_values)
         print(image_latents)
 
         if args.train_text_encoder:
