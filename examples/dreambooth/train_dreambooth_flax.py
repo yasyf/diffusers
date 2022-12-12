@@ -574,7 +574,6 @@ def main():
         else:
             params = {"unet": unet_state.params}
 
-        @jax.jit
         def compute_loss(params):
             # Convert images to latent space
             if args.cache_latents:
@@ -656,18 +655,15 @@ def main():
 
         return new_unet_state, new_text_encoder_state, metrics, new_train_rng
 
-    @jax.jit
     def cache_image_latents(pixel_values, vae_params):
         print("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
-            val = vae.apply(
+            return vae.apply(
                 {"params": vae_params},
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
-            print("VAL", val)
-            return val
 
     @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
