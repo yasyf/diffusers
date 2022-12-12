@@ -678,10 +678,10 @@ def main():
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
-            ).latent_dist.__dict__
-            print(y)
-            jax.block_until_ready(y)
-            return y
+            ).latent_dist
+            res = {"mean": y.mean, "logvar": y.logvar, "std": y.std, "var": y.var}
+            jax.block_until_ready(res)
+            return res
 
     # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
