@@ -738,7 +738,7 @@ def main():
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches", in_axes=1)
+    p_cache_latents = jax.pmap(cache_latents, "batches")
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
@@ -747,24 +747,29 @@ def main():
 
     # Cache latents
     if args.cache_latents:
-        dprint("Caching latents...")
+        train_dataset = LatentsDataset([])
+        for batch in tqdm(train_dataloader, desc="Caching latents"):
+            latents = p_cache_latents(shard(batch), vae_params, text_encoder_state)
+            train_dataset += LatentsDataset(latents)
 
-        def xxx(l):
-            dprint("LENGTH", l)
-            return l[0]
+        # dprint("Caching latents...")
 
-        vals = jnp.stack([[d["pixel_values"], d["input_ids"]] for d in train_dataloader])
-        jax.debug.breakpoint()
-        batch = [jnp.array(v) for v in vals]
-        jax.debug.breakpoint()
-        batches = jnp.asarray(batch)
-        jax.debug.breakpoint()
-        print(shard(batches).shape)
-        latents = p_cache_latents(shard(batches), vae_params, text_encoder_state)
-        jax.debug.breakpoint()
-        jax.block_until_ready(latents)
-        dprint("LATENTS SIZE", len(latents))
-        latents = jax.device_get(latents)
+        # def xxx(l):
+        #     dprint("LENGTH", l)
+        #     return l[0]
+
+        # vals = jnp.stack([[d["pixel_values"], d["input_ids"]] for d in train_dataloader])
+        # jax.debug.breakpoint()
+        # batch = [jnp.array(v) for v in vals]
+        # jax.debug.breakpoint()
+        # batches = jnp.asarray(batch)
+        # jax.debug.breakpoint()
+        # print(shard(batches).shape)
+        # latents = p_cache_latents(shard(batches), vae_params, text_encoder_state)
+        # jax.debug.breakpoint()
+        # jax.block_until_ready(latents)
+        # dprint("LATENTS SIZE", len(latents))
+        # latents = jax.device_get(latents)
         train_dataloader = torch.utils.data.DataLoader(
             LatentsDataset(latents),
             batch_size=1,
