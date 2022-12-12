@@ -683,13 +683,13 @@ def main():
         image_values = [b["pixel_values"] for b in batches]
         text_values = [b["input_ids"] for b in batches]
 
-        image_latents = jax.vmap(cache_image_latents, in_axis=1)(image_values)
+        image_latents = jax.vmap(cache_image_latents, in_axes=1)(image_values)
         print(image_latents)
 
         if args.train_text_encoder:
             text_latents = text_values
         else:
-            text_latents = jax.vmap(cache_text_latents, in_axis=1)(text_values)
+            text_latents = jax.vmap(cache_text_latents, in_axes=1)(text_values)
 
         return (image_latents, text_latents)
 
