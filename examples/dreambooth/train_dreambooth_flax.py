@@ -675,14 +675,13 @@ def main():
                 train=False,
             )[0]
 
-    @jax.jit
     def cache_latents(batches, vae_params, text_encoder_state):
         print("BATCHES", len(batches), batches[0]["pixel_values"].shape)
         image_values = jnp.stack([b["pixel_values"] for b in batches])
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
         print(image_values.shape)
-        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values, vae_params)
+        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None), out_axes=None)(image_values, vae_params)
         print(image_latents)
 
         if args.train_text_encoder:
