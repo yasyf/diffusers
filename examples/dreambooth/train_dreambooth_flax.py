@@ -676,14 +676,10 @@ def main():
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             y = vae.apply(
-                {"params": vae_params},
-                pixel_values,
-                method=vae.encode,
-                deterministic=True,
+                {"params": vae_params}, pixel_values, method=vae.encode, deterministic=True, capture_intermediates=True
             ).latent_dist
-            return jax.experimental.host_callback.call(
-                lambda d: [x["mean"], x["logvar"], x["std"], x["var"]], y.__dict__
-            )
+            print(y)
+            return jax.experimental.host_callback.id_print(y)
             jax.debug.print("D: {d}", d=y.__dict__)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
