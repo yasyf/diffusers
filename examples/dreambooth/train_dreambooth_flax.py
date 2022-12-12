@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 def dprint(*args):
-    jax.debug.print(" ".join(map(str, args)))
+    print(*args)
 
 
 class JaxDiagonalGaussianDistribution(PyTreeNode, FlaxDiagonalGaussianDistribution):
@@ -582,7 +582,7 @@ def main():
     # Initialize our training
     train_rngs = jax.random.split(rng, jax.local_device_count())
 
-    @jax.jit
+    # @jax.jit
     def compute_loss(params, dropout_rng, sample_rng, batch):
         dprint("HERE", batch)
         # Convert images to latent space
@@ -650,7 +650,7 @@ def main():
 
         return loss
 
-    @jax.jit
+    # @jax.jit
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
@@ -673,7 +673,7 @@ def main():
 
         return new_unet_state, new_text_encoder_state, metrics, new_train_rng
 
-    @jax.jit
+    # @jax.jit
     def cache_image_latents(pixel_values, vae_params):
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
@@ -688,7 +688,7 @@ def main():
                 )
             ]
 
-    @jax.jit
+    # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
         dprint("TEXT BATCH", input_ids)
         with torch.no_grad():
@@ -698,7 +698,7 @@ def main():
                 train=False,
             )[0:1]
 
-    @jax.jit
+    # @jax.jit
     def cache_latents(batches, vae_params, text_encoder_state):
         dprint("BATCHES", len(batches), batches[0]["pixel_values"].shape)
         image_values = jnp.stack([b["pixel_values"] for b in batches])
