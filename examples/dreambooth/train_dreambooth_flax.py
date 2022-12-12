@@ -675,16 +675,15 @@ def main():
     def cache_image_latents(pixel_values, vae_params):
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
-            y = vae.apply(
+            y, res = vae.apply(
                 {"params": vae_params},
                 pixel_values,
                 method=vae.encode,
                 deterministic=True,
                 capture_intermediates=True,
             )
-            print(y)
-            # jax.experimental.host_callback.id_print(y["latent_dist"].__dict__)
-            return y["intermediates"]["quant_conv"]["__call__"]
+            jax.experimental.host_callback.id_print(y.__dict__)
+            return res["intermediates"]["quant_conv"]["__call__"]
             jax.debug.print("D: {d}", d=y.__dict__)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
