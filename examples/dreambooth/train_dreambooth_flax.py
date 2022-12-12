@@ -676,8 +676,12 @@ def main():
         dprint("IMAGE pixe", pixel_values.shape)
         with torch.no_grad():
             y = vae.apply(
-                {"params": vae_params}, pixel_values, method=vae.encode, deterministic=True, capture_intermediates=True
-            ).latent_dist
+                {"params": vae_params},
+                pixel_values,
+                method=vae.encode,
+                deterministic=True,
+                capture_intermediates=True,
+            )
             print(y)
             return jax.experimental.host_callback.id_print(y)
             jax.debug.print("D: {d}", d=y.__dict__)
