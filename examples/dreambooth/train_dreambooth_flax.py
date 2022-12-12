@@ -518,7 +518,11 @@ def main():
 
     total_train_batch_size = args.train_batch_size * jax.local_device_count()
     train_dataloader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=total_train_batch_size, shuffle=True, collate_fn=collate_fn, drop_last=True
+        train_dataset,
+        batch_size=total_train_batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+        drop_last=True,
     )
 
     weight_dtype = jnp.float32
@@ -726,7 +730,7 @@ def main():
 
     # Create parallel version of the train step
     p_train_step = jax.pmap(train_step, "batch", donate_argnums=(0, 1, 4))
-    p_cache_latents = jax.pmap(cache_latents, "batches")
+    # p_cache_latents = jax.pmap(cache_latents, "batches")
 
     # Replicate the train state on each device
     unet_state = jax_utils.replicate(unet_state)
@@ -741,14 +745,13 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        print(list(train_dataloader))
-        latents = p_cache_latents(list(train_dataloader), vae_params, text_encoder_state)
-        jax.debug.breakpoint()
-        jax.block_until_ready(latents)
-        dprint("LATENTS SIZE", len(latents))
-        latents = jax.device_get(latents)
+        train_dataset = LatentsDataset([])
+        for batch in tqdm(train_dataloader, desc="Caching latents"):
+            latents = cache_latents(batch, vae_params, text_encoder_state)
+            train_dataset += LatentsDataset(latents)
+
         train_dataloader = torch.utils.data.DataLoader(
-            LatentsDataset(latents),
+            train_dataset,
             batch_size=1,
             shuffle=True,
             collate_fn=xxx,
