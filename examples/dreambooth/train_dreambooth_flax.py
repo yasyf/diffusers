@@ -753,7 +753,12 @@ def main():
             dprint("LENGTH", l)
             return l[0]
 
-        batches = jnp.asarray([jnp.asarray(list(d.values())) for d in train_dataloader])
+        vals = list(train_dataloader.values())
+        jax.debug.breakpoint()
+        batch = [jnp.asarray(v) for v in vals]
+        jax.debug.breakpoint()
+        batches = jnp.asarray(batch)
+        jax.debug.breakpoint()
         print(shard(batches).shape)
         latents = p_cache_latents(shard(batches), vae_params, text_encoder_state)
         jax.debug.breakpoint()
