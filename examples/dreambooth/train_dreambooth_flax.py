@@ -45,6 +45,8 @@ check_min_version("0.10.0.dev0")
 
 logger = logging.getLogger(__name__)
 
+logging.getLogger("jax").setLevel(logging.DEBUG)
+
 
 def dprint(*args):
     print(*args)
@@ -682,7 +684,7 @@ def main():
                 method=vae.encode,
                 deterministic=True,
             ).latent_dist
-            jax.debug.print(y.__dict__)
+            jax.debug.print("D: {d}", d=y.__dict__)
             xxx = jax.device_get(jnp.asarray([y.mean, y.logvar, y.std, y.var]))
             jax.block_until_ready(xxx)
             jax.experimental.host_callback.id_print(xxx, where="cache_image_latents")
@@ -690,6 +692,7 @@ def main():
             jax.block_until_ready(res)
             r = jax.device_get(res)
             jax.block_until_ready(r)
+            jax.experimental.host_callback.barrier_wait()
             print("HE", r)
             return r
 
