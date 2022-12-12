@@ -716,7 +716,7 @@ def main():
         text_values = jnp.stack([b["input_ids"] for b in batches])
 
         dprint("IMG CVAL CHAPE", image_values.shape)
-        image_latents = jax.vmap(cache_image_latents, in_axes=(0, None))(image_values)
+        image_latents = jax.vmap(cache_image_latents, in_axes=0)(image_values)
         jax.block_until_ready(image_latents)
         dprint("LATENTS SHAPE", len(image_latents))
 
