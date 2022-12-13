@@ -668,7 +668,6 @@ def main():
 
         return new_unet_state, new_text_encoder_state, metrics, new_train_rng
 
-    # @jax.jit
     def cache_image_latents(pixel_values, vae_params):
         with torch.no_grad():
             _, results = vae.apply(
@@ -680,7 +679,6 @@ def main():
             )
             return results["intermediates"]["quant_conv"]["__call__"][0]
 
-    # @jax.jit
     def cache_text_latents(input_ids, text_encoder_state):
         with torch.no_grad():
             return text_encoder(
@@ -689,7 +687,6 @@ def main():
                 train=False,
             )[0]
 
-    # @jax.jit
     def cache_latents(batch, vae_params, text_encoder_state, train_text_encoder):
         return {
             "pixel_values": cache_image_latents(batch["pixel_values"], vae_params),
