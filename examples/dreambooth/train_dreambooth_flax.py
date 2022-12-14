@@ -541,7 +541,6 @@ def main():
     noise_scheduler, _ = FlaxDDPMScheduler.from_pretrained(
         args.pretrained_model_name_or_path,
         subfolder="scheduler",
-        dtype=weight_dtype,
         revision=args.revision,
     )
 
