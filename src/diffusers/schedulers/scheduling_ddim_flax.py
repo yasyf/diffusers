@@ -305,22 +305,36 @@ class FlaxDDIMScheduler(FlaxSchedulerMixin, ConfigMixin):
 
         return FlaxDDIMSchedulerOutput(prev_sample=prev_sample, state=state)
 
+    def _get_alpha_prod(self, timesteps: jnp.ndarray, samples: jnp.ndarray) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        sqrt_alpha_prod = self.alphas_cumprod[timesteps] ** 0.5
+        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = broadcast_to_shape_from_left(sqrt_alpha_prod, samples.shape)
+
+        sqrt_one_minus_alpha_prod = (1 - self.alphas_cumprod[timesteps]) ** 0.5
+        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = broadcast_to_shape_from_left(sqrt_one_minus_alpha_prod, samples.shape)
+
+        return sqrt_alpha_prod, sqrt_one_minus_alpha_prod
+
     def add_noise(
         self,
         original_samples: jnp.ndarray,
         noise: jnp.ndarray,
         timesteps: jnp.ndarray,
     ) -> jnp.ndarray:
-        sqrt_alpha_prod = self.alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
-        sqrt_alpha_prod = broadcast_to_shape_from_left(sqrt_alpha_prod, original_samples.shape)
-
-        sqrt_one_minus_alpha_prod = (1 - self.alphas_cumprod[timesteps]) ** 0.0
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
-        sqrt_one_minus_alpha_prod = broadcast_to_shape_from_left(sqrt_one_minus_alpha_prod, original_samples.shape)
-
+        sqrt_alpha_prod, sqrt_one_minus_alpha_prod = self._get_alpha_prod(timesteps, original_samples)
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples
+
+    def get_velocity(
+        self,
+        sample: jnp.ndarray,
+        noise: jnp.ndarray,
+        timesteps: jnp.ndarray,
+    ) -> jnp.ndarray:
+        sqrt_alpha_prod, sqrt_one_minus_alpha_prod = self._get_alpha_prod(timesteps, sample)
+        velocity = sqrt_alpha_prod * noise - sqrt_one_minus_alpha_prod * sample
+        return velocity
 
     def __len__(self):
         return self.config.num_train_timesteps
