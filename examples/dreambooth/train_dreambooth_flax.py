@@ -137,7 +137,7 @@ def parse_args():
         default=512,
         help=(
             "The resolution for input images, all the images in the train/validation dataset will be resized to this"
-            " resolution"
+            " resolution (768 for stabilityai/stable-diffusion-2)"
         ),
     )
     parser.add_argument(
@@ -169,15 +169,6 @@ def parse_args():
         action="store_true",
         default=False,
         help="Scale the learning rate by the number of GPUs, gradient accumulation steps, and batch size.",
-    )
-    parser.add_argument(
-        "--lr_scheduler",
-        type=str,
-        default="constant",
-        help=(
-            'The scheduler type to use. Choose between ["linear", "cosine", "cosine_with_restarts", "polynomial",'
-            ' "constant", "constant_with_warmup"]'
-        ),
     )
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="The beta1 parameter for the Adam optimizer.")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam optimizer.")
@@ -302,10 +293,10 @@ class DreamBoothDataset(IterableDataset):
                             hue=0.2 * do_augment,
                         ),
                         transforms.RandomResizedCrop(self.size * (0.8 + (0.2 * do_augment))),
-                        transforms.RandomVerticalFlip(0.4 * do_augment),
-                        transforms.RandomInvert(0.6 * do_augment),
+                        transforms.RandomVerticalFlip(0.5 * do_augment),
+                        transforms.RandomInvert(0.5 * do_augment),
                         transforms.RandomAdjustSharpness(2, p=0.5 * do_augment),
-                        transforms.RandomAutocontrast(p=0.3 * do_augment),
+                        transforms.RandomAutocontrast(p=0.5 * do_augment),
                     ]
                 ),
             ]
@@ -547,6 +538,13 @@ def main():
         revision=args.revision,
     )
 
+    noise_scheduler, _ = FlaxDDPMScheduler.from_pretrained(
+        args.pretrained_model_name_or_path,
+        subfolder="scheduler",
+        dtype=weight_dtype,
+        revision=args.revision,
+    )
+
     # Optimization
     if args.scale_lr:
         args.learning_rate = args.learning_rate * total_train_batch_size
@@ -569,10 +567,6 @@ def main():
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
     text_encoder_state = train_state.TrainState.create(
         apply_fn=text_encoder.__call__, params=text_encoder.params, tx=optimizer
-    )
-
-    noise_scheduler = FlaxDDPMScheduler(
-        beta_start=0.00085, beta_end=0.012, beta_schedule="scaled_linear", num_train_timesteps=1000
     )
 
     # Initialize our training
@@ -619,33 +613,39 @@ def main():
             encoder_hidden_states = text_encoder(batch["input_ids"], params=text_encoder_state.params, train=False)[0]
 
         # Predict the noise residual
-        unet_outputs = unet.apply(
+        model_pred = unet.apply(
             {"params": params["unet"]}, noisy_latents, timesteps, encoder_hidden_states, train=True
-        )
-        noise_pred = unet_outputs.sample
+        ).sample
+
+        # Get the target for loss depending on the prediction type
+        if noise_scheduler.config.prediction_type == "epsilon":
+            target = noise
+        elif noise_scheduler.config.prediction_type == "v_prediction":
+            target = noise_scheduler.get_velocity(latents, noise, timesteps)
+        else:
+            raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
         if args.with_prior_preservation:
             # Chunk the noise and noise_pred into two parts and compute the loss on each part separately.
-            noise_pred, noise_pred_prior = jnp.split(noise_pred, 2, axis=0)
-            noise, noise_prior = jnp.split(noise, 2, axis=0)
+            model_pred, model_pred_prior = jnp.split(model_pred, 2, axis=0)
+            target, target_prior = jnp.split(target, 2, axis=0)
 
             # Compute instance loss
-            loss = (noise - noise_pred) ** 2
+            loss = (target - model_pred) ** 2
             loss = loss.mean()
 
             # Compute prior loss
-            prior_loss = (noise_prior - noise_pred_prior) ** 2
+            prior_loss = (target_prior - model_pred_prior) ** 2
             prior_loss = prior_loss.mean()
 
             # Add the prior loss to the instance loss.
             loss = loss + args.prior_loss_weight * prior_loss
         else:
-            loss = (noise - noise_pred) ** 2
+            loss = (target - model_pred) ** 2
             loss = loss.mean()
 
         return loss
 
-    @partial(jax.jit, donate_argnums=(0, 1, 3, 4))
     def train_step(unet_state, text_encoder_state, vae_params, batch, train_rng):
         dropout_rng, sample_rng, new_train_rng = jax.random.split(train_rng, 3)
 
