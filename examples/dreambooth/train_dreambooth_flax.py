@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import itertools
 import logging
 import math
 import os
@@ -25,13 +26,16 @@ from diffusers import (
     FlaxStableDiffusionPipeline,
     FlaxUNet2DConditionModel,
 )
+from diffusers.experimental.lora.linear_with_lora_flax import FlaxLinearWithLora
 from diffusers.models.vae_flax import FlaxDiagonalGaussianDistribution
 from diffusers.pipelines.stable_diffusion import FlaxStableDiffusionSafetyChecker
 from diffusers.utils import check_min_version
 from flax import jax_utils
+from flax.optim import MultiOptimizer
 from flax.struct import PyTreeNode, field
 from flax.training import train_state
 from flax.training.common_utils import shard
+from flax.traverse_util import flatten_dict, unflatten_dict
 from huggingface_hub import HfFolder, Repository, whoami
 from jax.experimental.compilation_cache import compilation_cache as cc
 from PIL import Image
@@ -144,6 +148,7 @@ def parse_args():
         "--center_crop", action="store_true", help="Whether to center crop images before resizing to resolution"
     )
     parser.add_argument("--augment_images", action="store_true", help="Apply random data augmentations.")
+    parser.add_argument("--lora", action="store_true", help="Use LoRA (https://arxiv.org/abs/2106.09685)")
     parser.add_argument("--train_text_encoder", action="store_true", help="Whether to train the text encoder")
     parser.add_argument(
         "--train_batch_size", type=int, default=4, help="Batch size (per device) for the training dataloader."
@@ -526,6 +531,7 @@ def main():
         vae_arg, vae_kwargs = (args.pretrained_vae_name_or_path, {"from_pt": True})
     else:
         vae_arg, vae_kwargs = (args.pretrained_model_name_or_path, {"subfolder": "vae", "revision": args.revision})
+
     vae, vae_params = FlaxAutoencoderKL.from_pretrained(
         vae_arg,
         dtype=weight_dtype,
@@ -562,6 +568,25 @@ def main():
         optax.clip_by_global_norm(args.max_grad_norm),
         adamw,
     )
+
+    if args.lora:
+        mask = {}
+        unet_params, mask["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
+        if args.train_text_encoder:
+            text_encoder.params, mask["text_encoder"] = FlaxLinearWithLora.wrap(
+                text_encoder.params, text_encoder, targets=["FlaxCLIPAttention"]
+            )
+
+        mask_keys = set(flatten_dict(mask).keys())
+        all_mask = {
+            k: k in mask_keys
+            for k in itertools.chain(
+                flatten_dict(unet_params).keys(),
+                flatten_dict(text_encoder.params).keys(),
+            )
+        }
+
+        optimizer = optax.masked(optimizer, mask=all_mask)
 
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
     text_encoder_state = train_state.TrainState.create(
