@@ -31,11 +31,9 @@ from diffusers.models.vae_flax import FlaxDiagonalGaussianDistribution
 from diffusers.pipelines.stable_diffusion import FlaxStableDiffusionSafetyChecker
 from diffusers.utils import check_min_version
 from flax import jax_utils
-from flax.optim import MultiOptimizer
-from flax.struct import PyTreeNode, field
 from flax.training import train_state
 from flax.training.common_utils import shard
-from flax.traverse_util import flatten_dict, unflatten_dict
+from flax.traverse_util import flatten_dict
 from huggingface_hub import HfFolder, Repository, whoami
 from jax.experimental.compilation_cache import compilation_cache as cc
 from PIL import Image

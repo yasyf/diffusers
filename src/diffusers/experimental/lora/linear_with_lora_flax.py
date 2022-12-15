@@ -40,9 +40,9 @@ class FlaxLinearWithLora(nn.Module):
     def _wrap_dense(params: dict, model: nn.Module):
         params_to_optimize = defaultdict(lambda: defaultdict(dict))
 
-        for name, child in LinearWithLora._get_children(model):
+        for name, child in FlaxLinearWithLora._get_children(model):
             if child.__class__.__name__ == "Dense":
-                lora = LinearWithLora(
+                lora = FlaxLinearWithLora(
                     out_features=child.features,
                     use_bias=child.use_bias,
                 )
@@ -71,11 +71,11 @@ class FlaxLinearWithLora(nn.Module):
         mutable_params = params.unfreeze()
         params_to_optimize = {}
 
-        for name, child in LinearWithLora._get_children(model):
+        for name, child in FlaxLinearWithLora._get_children(model):
             if child.__class__.__name__ in targets:
-                results = LinearWithLora._wrap_dense(mutable_params[name], child)
+                results = FlaxLinearWithLora._wrap_dense(mutable_params[name], child)
             else:
-                results = LinearWithLora.inject(mutable_params[name], child)
+                results = FlaxLinearWithLora.inject(mutable_params[name], child)
 
             mutable_params[name], params_to_optimize[name] = results
 
