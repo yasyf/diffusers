@@ -26,7 +26,7 @@ from huggingface_hub.utils import EntryNotFoundError, RepositoryNotFoundError, R
 from requests import HTTPError
 
 from . import __version__
-from .hub_utils import send_telemetry
+from .hub_utils import HF_HUB_OFFLINE
 from .utils import (
     CONFIG_NAME,
     DIFFUSERS_CACHE,
@@ -188,6 +188,39 @@ class ModelMixin(torch.nn.Module):
         if self._supports_gradient_checkpointing:
             self.apply(partial(self._set_gradient_checkpointing, value=False))
 
+    def set_use_memory_efficient_attention_xformers(self, valid: bool) -> None:
+        # Recursively walk through all the children.
+        # Any children which exposes the set_use_memory_efficient_attention_xformers method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: torch.nn.Module):
+            if hasattr(module, "set_use_memory_efficient_attention_xformers"):
+                module.set_use_memory_efficient_attention_xformers(valid)
+
+            for child in module.children():
+                fn_recursive_set_mem_eff(child)
+
+        for module in self.children():
+            if isinstance(module, torch.nn.Module):
+                fn_recursive_set_mem_eff(module)
+
+    def enable_xformers_memory_efficient_attention(self):
+        r"""
+        Enable memory efficient attention as implemented in xformers.
+
+        When this option is enabled, you should observe lower GPU memory usage and a potential speed up at inference
+        time. Speed up at training time is not guaranteed.
+
+        Warning: When Memory Efficient Attention and Sliced attention are both enabled, the Memory Efficient Attention
+        is used.
+        """
+        self.set_use_memory_efficient_attention_xformers(True)
+
+    def disable_xformers_memory_efficient_attention(self):
+        r"""
+        Disable memory efficient attention as implemented in xformers.
+        """
+        self.set_use_memory_efficient_attention_xformers(False)
+
     def save_pretrained(
         self,
         save_directory: Union[str, os.PathLike],
@@ -344,7 +377,7 @@ class ModelMixin(torch.nn.Module):
         resume_download = kwargs.pop("resume_download", False)
         proxies = kwargs.pop("proxies", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
-        local_files_only = kwargs.pop("local_files_only", False)
+        local_files_only = kwargs.pop("local_files_only", HF_HUB_OFFLINE)
         use_auth_token = kwargs.pop("use_auth_token", None)
         revision = kwargs.pop("revision", None)
         torch_dtype = kwargs.pop("torch_dtype", None)
@@ -561,10 +594,6 @@ class ModelMixin(torch.nn.Module):
                 raise EnvironmentError(
                     f"Error no file named {weights_name} found in directory {pretrained_model_name_or_path}."
                 )
-            send_telemetry(
-                {"model_class": cls.__name__, "model_path": "local", "framework": "pytorch"},
-                name="diffusers_from_pretrained",
-            )
             return model_file
         else:
             try:
@@ -581,10 +610,6 @@ class ModelMixin(torch.nn.Module):
                     user_agent=user_agent,
                     subfolder=subfolder,
                     revision=revision,
-                )
-                send_telemetry(
-                    {"model_class": cls.__name__, "model_path": "hub", "framework": "pytorch"},
-                    name="diffusers_from_pretrained",
                 )
                 return model_file
 
