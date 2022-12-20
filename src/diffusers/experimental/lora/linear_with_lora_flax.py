@@ -80,7 +80,7 @@ class FlaxLinearWithLora(nn.Module):
 
             mutable_params[name], params_to_optimize[name] = results
 
-        for name, val in params.keys():
+        for name, val in params.items():
             if name not in params_to_optimize and not isinstance(val, dict):
                 params_to_optimize[name] = False
 
