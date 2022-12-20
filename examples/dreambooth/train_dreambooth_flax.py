@@ -582,7 +582,7 @@ def main():
         mask = {}
         unet_params, mask["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
         if args.train_text_encoder:
-            text_encoder.params, mask["text_encoder"] = FlaxLinearWithLora.wrap(
+            text_encoder.params, mask["text_encoder"] = FlaxLinearWithLora.inject(
                 text_encoder.params, text_encoder, targets=["FlaxCLIPAttention"]
             )
 
