@@ -554,6 +554,7 @@ def main():
         subfolder="scheduler",
         revision=args.revision,
     )
+    noise_scheduler_state = noise_scheduler.create_state()
 
     # Optimization
     if args.scale_lr:
@@ -629,7 +630,7 @@ def main():
 
         # Add noise to the latents according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
+        noisy_latents = noise_scheduler.add_noise(noise_scheduler_state, latents, noise, timesteps)
 
         # Get the text embedding for conditioning
         if args.train_text_encoder:
@@ -650,7 +651,7 @@ def main():
         if noise_scheduler.config.prediction_type == "epsilon":
             target = noise
         elif noise_scheduler.config.prediction_type == "v_prediction":
-            target = noise_scheduler.get_velocity(latents, noise, timesteps)
+            target = noise_scheduler.get_velocity(noise_scheduler_state, latents, noise, timesteps)
         else:
             raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
 
