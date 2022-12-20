@@ -325,6 +325,9 @@ class DreamBoothDataset(IterableDataset):
         }
 
     def _class_image(self, index):
+        if not self.class_data_root:
+            return {}
+
         class_image = Image.open(self.class_images_path[index % self.num_class_images])
 
         if not class_image.mode == "RGB":
