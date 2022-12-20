@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from typing import Union
 
 import flax.linen as nn
 import jax
@@ -40,7 +41,7 @@ class FlaxLinearWithLora(nn.Module):
     def _wrap_dense(params: dict, model: nn.Module):
         params_to_optimize = defaultdict(lambda: defaultdict(dict))
 
-        for name, child in FlaxLinearWithLora._get_children(model):
+        for name, child in FlaxLinearWithLora._get_children(model).items():
             if child.__class__.__name__ == "Dense":
                 lora = FlaxLinearWithLora(
                     out_features=child.features,
@@ -61,14 +62,14 @@ class FlaxLinearWithLora(nn.Module):
 
     @staticmethod
     def inject(
-        params: FrozenDict,
+        params: Union[dict, FrozenDict],
         model: nn.Module,
         targets=[
             "FlaxAttentionBlock",
         ],
     ):
         model = model.bind(params)
-        mutable_params = params.unfreeze()
+        mutable_params = params.unfreeze() if isinstance(params, FrozenDict) else params
         params_to_optimize = {}
 
         for name, child in FlaxLinearWithLora._get_children(model):
