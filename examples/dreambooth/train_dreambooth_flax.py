@@ -580,10 +580,11 @@ def main():
 
     if args.lora:
         mask = {}
-        print(flatten_dict(unet_params).keys())
+        k1 = set(flatten_dict(unet_params).keys())
         unet_params, mask["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
-        print(flatten_dict(unet_params).keys())
-        exit()
+        k2 = set(flatten_dict(unet_params.keys()))
+        print(k2 - k1)
+        print(k1 - k2)
         if args.train_text_encoder:
             text_encoder.params, mask["text_encoder"] = FlaxLinearWithLora.inject(
                 text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
@@ -591,11 +592,7 @@ def main():
 
         mask_keys = set(flatten_dict(mask).keys())
         all_mask = {
-            k: k in mask_keys
-            for k in itertools.chain(
-                flatten_dict(unet_params).keys(),
-                flatten_dict(text_encoder.params).keys(),
-            )
+            k: k in mask_keys for k in flatten_dict({"unet": unet_params, "text_encoder": text_encoder.params}).keys()
         }
 
         optimizer = optax.masked(optimizer, mask=all_mask)
