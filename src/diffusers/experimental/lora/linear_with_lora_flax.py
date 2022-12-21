@@ -55,6 +55,7 @@ class FlaxLinearWithLora(nn.Module):
         setattr(model.parent, name, lora)
         model.parent._state.in_setup = False
 
+        print("PARAMS", lora_params)
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
             print(f"{n} {params_to_optimize[n]}")
