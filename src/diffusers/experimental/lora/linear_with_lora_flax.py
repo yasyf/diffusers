@@ -49,7 +49,6 @@ class FlaxLinearWithLora(nn.Module):
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         lora_params["linear"] = params
-        lora = lora.bind({"params": lora_params})
 
         model.parent._state.in_setup = True
         model.parent._state.setup_called = SetupState.TRANSFORMED
