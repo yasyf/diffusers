@@ -58,15 +58,14 @@ class FlaxLinearWithLora(nn.Module):
         for k, v in model.parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
+        import pdb
+
+        pdb.set_trace()
         object.__setattr__(lora, "parent", model.parent)
         lora.__post_init__()
 
         model.parent._state.setup_called = SetupState.DONE
         model.parent._state.in_setup = False
-
-        import pdb
-
-        pdb.set_trace()
 
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
