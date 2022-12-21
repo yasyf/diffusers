@@ -586,21 +586,19 @@ def main():
                 text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
             )
 
-        print(list(flatten_dict(mask).keys())[0])
-        print(list(flatten_dict(unet_params).keys())[0])
-        print(list(flatten_dict(text_encoder.params).keys())[0])
-
         mask_keys = set(flatten_dict(mask).keys())
         all_mask = {
-            k: k in mask_keys
+            k[0]: k[0] in mask_keys
             for k in itertools.chain(
                 flatten_dict(unet_params).keys(),
                 flatten_dict(text_encoder.params).keys(),
             )
         }
 
+        print(list(flatten_dict(mask).keys())[0])
+        print(list(flatten_dict(unet_params).keys())[0])
+        print(list(flatten_dict(text_encoder.params).keys())[0])
         print(list(flatten_dict(all_mask).keys())[0])
-        exit()
 
         optimizer = optax.masked(optimizer, mask=all_mask)
 
