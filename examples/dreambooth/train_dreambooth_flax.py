@@ -580,6 +580,7 @@ def main():
 
     if args.lora:
         masks = {}
+        print(len(unet_params))
         unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
         if args.train_text_encoder:
             text_encoder._params, masks["text_encoder"] = FlaxLinearWithLora.inject(
@@ -587,7 +588,6 @@ def main():
             )
 
         mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
-        print("MARK", mask_values)
         all_mask = unflatten_dict(
             {
                 k: mask_values.get(k, False)
@@ -598,10 +598,8 @@ def main():
             }
         )
 
-        print(list(mask_values.keys())[1:10])
-        print(list(unet_params.keys())[1:10])
-        print(list(text_encoder.params.keys())[1:10])
-        print(list(all_mask.keys())[1:10])
+        print(len(unet_params))
+        exit()
 
         optimizer = optax.masked(optimizer, mask=all_mask)
 
