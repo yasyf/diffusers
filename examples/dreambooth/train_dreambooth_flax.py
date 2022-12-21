@@ -598,8 +598,9 @@ def main():
             }
         )
 
-        print(len(unet_params))
-        exit()
+        print(list(all_mask.keys())[0:5])
+        print(list(unet_params.keys())[0:5])
+        print(list(text_encoder.params.keys())[0:5])
 
         optimizer = optax.masked(optimizer, mask=all_mask)
 
