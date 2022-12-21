@@ -8,6 +8,7 @@ import jax
 import jax.numpy as jnp
 import optax
 from flax.core.frozen_dict import FrozenDict, freeze
+from flax.linen.module import SetupState
 from flax.traverse_util import flatten_dict
 
 
@@ -51,10 +52,16 @@ class FlaxLinearWithLora(nn.Module):
         lora = lora.bind({"params": lora_params})
 
         model.parent._state.in_setup = True
+        model.parent._state.setup_called = SetupState.TRANSFORMED
+
         setattr(model.parent, name, lora)
         for k, v in model.parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
+
+        lora.parent = model.parent
+        lora.__post_init__()
+        model.parent._state.setup_called = SetupState.DONE
         model.parent._state.in_setup = False
 
         import pdb
