@@ -586,6 +586,9 @@ def main():
                 text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
             )
 
+        import pdb
+
+        pdb.set_trace()
         print(mask)
         print(list(flatten_dict(unet_params).keys())[0])
         print(list(flatten_dict(text_encoder).keys())[0])
