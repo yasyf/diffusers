@@ -586,10 +586,7 @@ def main():
                 text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
             )
 
-        import pdb
-
-        pdb.set_trace()
-        print(mask)
+        print(list(flatten_dict(mask).keys())[0])
         print(list(flatten_dict(unet_params).keys())[0])
         print(list(flatten_dict(text_encoder).keys())[0])
 
@@ -601,6 +598,9 @@ def main():
                 flatten_dict(text_encoder.params).keys(),
             )
         }
+
+        print(list(flatten_dict(text_encoder).keys())[0])
+        exit()
 
         optimizer = optax.masked(optimizer, mask=all_mask)
 
