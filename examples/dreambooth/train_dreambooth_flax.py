@@ -598,10 +598,10 @@ def main():
             }
         )
 
-        print(list(mask_values.keys())[0])
-        print(list(flatten_dict(unet_params).keys())[0])
-        print(list(flatten_dict(text_encoder.params).keys())[0])
-        print(list(flatten_dict(all_mask).keys())[0])
+        print(list(mask_values.keys())[1:10])
+        print(list(unet_params.keys())[1:10])
+        print(list(text_encoder.params.keys())[1:10])
+        print(list(all_mask.keys())[1:10])
 
         optimizer = optax.masked(optimizer, mask=all_mask)
 
