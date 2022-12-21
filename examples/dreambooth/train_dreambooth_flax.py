@@ -588,7 +588,7 @@ def main():
 
         print(list(flatten_dict(mask).keys())[0])
         print(list(flatten_dict(unet_params).keys())[0])
-        print(list(flatten_dict(text_encoder).keys())[0])
+        print(list(flatten_dict(text_encoder.params).keys())[0])
 
         mask_keys = set(flatten_dict(mask).keys())
         all_mask = {
