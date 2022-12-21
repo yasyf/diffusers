@@ -582,7 +582,7 @@ def main():
         mask = {}
         k1 = set(flatten_dict(unet_params).keys())
         unet_params, mask["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
-        k2 = set(flatten_dict(unet_params.keys()))
+        k2 = set(flatten_dict(unet_params).keys())
         print(k2 - k1)
         print(k1 - k2)
         if args.train_text_encoder:
