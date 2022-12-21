@@ -48,7 +48,12 @@ class FlaxLinearWithLora(nn.Module):
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()
         lora_params["linear"] = params
 
+        for attr in ["name", "parent", "scope"]:
+            object.__setattr__(lora, attr, object.__getattribute__(model, attr))
+
+        model.parent._state.in_setup = True
         setattr(model.parent, name, lora)
+        model.parent._state.in_setup = False
 
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
