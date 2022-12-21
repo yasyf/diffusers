@@ -57,6 +57,7 @@ class FlaxLinearWithLora(nn.Module):
 
                 for n in ["lora_up", "lora_down"]:
                     params_to_optimize[name][n] = {k: True for k in lora_params[n].keys()}
+                    print(f"{name} {n} {params_to_optimize[name][n]}")
                 params_to_optimize[name]["linear"] = {k: False for k in lora_params["linear"].keys()}
 
         print("OPT", params_to_optimize)
