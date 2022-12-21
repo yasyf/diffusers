@@ -590,7 +590,9 @@ def main():
         mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
 
         def get_mask(params):
-            return unflatten_dict({k: mask_values.get(k, False) for k in flatten_dict(params).keys()})
+            return unflatten_dict(
+                {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
+            )
 
         optimizer = optax.masked(optimizer, mask=get_mask)
 
