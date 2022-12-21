@@ -587,6 +587,7 @@ def main():
             )
 
         mask_values = flatten_dict(mask)
+        print(mask_values.keys())
         all_mask = unflatten_dict(
             {
                 k: mask_values.get(k, False)

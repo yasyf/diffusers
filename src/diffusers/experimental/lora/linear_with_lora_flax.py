@@ -1,3 +1,4 @@
+import copy
 import re
 from collections import defaultdict
 from typing import Union
@@ -72,7 +73,7 @@ class FlaxLinearWithLora(nn.Module):
         if hasattr(model, "init_weights"):
             model.init_weights(jax.random.PRNGKey(0))
 
-        mutable_params = params.unfreeze() if isinstance(params, FrozenDict) else params
+        mutable_params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
 
         for name, child in FlaxLinearWithLora._get_children(model).items():
@@ -82,9 +83,5 @@ class FlaxLinearWithLora(nn.Module):
                 results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child)
 
             mutable_params[name], params_to_optimize[name] = results
-
-        for name, val in mutable_params.items():
-            if name not in params_to_optimize and not isinstance(val, dict):
-                params_to_optimize[name] = False
 
         return mutable_params, params_to_optimize
