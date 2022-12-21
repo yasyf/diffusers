@@ -599,7 +599,7 @@ def main():
             )
         }
 
-        print(list(flatten_dict(text_encoder).keys())[0])
+        print(list(flatten_dict(all_mask).keys())[0])
         exit()
 
         optimizer = optax.masked(optimizer, mask=all_mask)
