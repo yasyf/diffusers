@@ -57,7 +57,7 @@ class FlaxLinearWithLora(nn.Module):
 
         import pdb
 
-        pdb.Pdb(stdout=sys.__stdout__).set_trace()
+        pdb.set_trace()
 
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
