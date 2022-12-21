@@ -44,8 +44,9 @@ class FlaxLinearWithLora(nn.Module):
             out_features=model.features,
             use_bias=model.use_bias,
             name=name,
-            parent=model.parent,
         )
+        # for attr in ["name", "parent", "scope"]:
+        #     object.__setattr__(lora, attr, object.__getattribute__(model, attr))
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         lora_params["linear"] = params
