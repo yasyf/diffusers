@@ -49,7 +49,7 @@ class FlaxLinearWithLora(nn.Module):
                 )
 
                 lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()
-                lora_params["linear"] = params[name]
+                lora_params["linear"] = params.pop(name)
 
                 setattr(model, name, lora)
                 params[name] = lora_params
@@ -82,9 +82,5 @@ class FlaxLinearWithLora(nn.Module):
                 results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child)
 
             mutable_params[name], params_to_optimize[name] = results
-
-        for name, val in params.items():
-            if name not in params_to_optimize and not isinstance(val, dict):
-                params_to_optimize[name] = False
 
         return mutable_params, params_to_optimize
