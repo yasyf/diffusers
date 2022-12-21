@@ -52,6 +52,7 @@ class FlaxLinearWithLora(nn.Module):
 
         object.__setattr__(lora.parent, name, None)
         model.parent._state.in_setup = True
+        print(f"Adding {name} to {model.parent.name}")
         setattr(model.parent, name, lora)
         model.parent._state.in_setup = False
 
