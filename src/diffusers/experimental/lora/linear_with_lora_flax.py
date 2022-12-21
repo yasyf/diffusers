@@ -39,29 +39,29 @@ class FlaxLinearWithLora(nn.Module):
         return {k: v for k, v in model._state.children.items() if isinstance(v, nn.Module)}
 
     @staticmethod
-    def _wrap_dense(params: dict, model: nn.Module):
+    def _wrap_dense(params: dict, model: Union[nn.Dense, nn.Module], name: str):
+        if not isinstance(model, nn.Dense):
+            return params, {}
+
         params_to_optimize = defaultdict(dict)
 
-        for name, child in FlaxLinearWithLora._get_children(model).items():
-            if child.__class__.__name__ == "Dense":
-                lora = FlaxLinearWithLora(
-                    out_features=child.features,
-                    use_bias=child.use_bias,
-                )
+        lora = FlaxLinearWithLora(
+            out_features=model.features,
+            use_bias=model.use_bias,
+        )
 
-                lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()
-                lora_params["linear"] = params[name]
+        lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()
+        lora_params["linear"] = params
 
-                setattr(model, name, lora)
-                params[name] = lora_params
+        setattr(model.parent, name, lora)
 
-                for n in ["lora_up", "lora_down"]:
-                    params_to_optimize[name][n] = {k: True for k in lora_params[n].keys()}
-                    print(f"{name} {n} {params_to_optimize[name][n]}")
-                params_to_optimize[name]["linear"] = {k: False for k in lora_params["linear"].keys()}
+        for n in ["lora_up", "lora_down"]:
+            params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
+            print(f"{n} {params_to_optimize[n]}")
+        params_to_optimize["linear"] = {k: False for k in lora_params["linear"].keys()}
 
         print("OPT", params_to_optimize)
-        return params, dict(params_to_optimize)
+        return lora_params, dict(params_to_optimize)
 
     @staticmethod
     def inject(
@@ -70,6 +70,7 @@ class FlaxLinearWithLora(nn.Module):
         targets=[
             "FlaxAttentionBlock",
         ],
+        is_target: bool = False,
     ):
         model = model.bind({"params": params})
         if hasattr(model, "init_weights"):
@@ -79,8 +80,10 @@ class FlaxLinearWithLora(nn.Module):
         params_to_optimize = {}
 
         for name, child in FlaxLinearWithLora._get_children(model).items():
-            if child.__class__.__name__ in targets:
-                results = FlaxLinearWithLora._wrap_dense(mutable_params.get(name, {}), child)
+            if is_target:
+                results = FlaxLinearWithLora._wrap_dense(mutable_params.get(name, {}), child, name)
+            elif child.__class__.__name__ in targets:
+                results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child, is_target=True)
             else:
                 results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child)
 
