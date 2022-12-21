@@ -588,21 +588,11 @@ def main():
             )
 
         mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
-        all_mask = unflatten_dict(
-            {
-                k: mask_values.get(k, False)
-                for k in itertools.chain(
-                    flatten_dict(unet_params).keys(),
-                    flatten_dict(text_encoder.params).keys(),
-                )
-            }
-        )
 
-        print(list(all_mask.keys())[0:5])
-        print(list(unet_params.keys())[0:5])
-        print(list(text_encoder.params.keys())[0:5])
+        def get_mask(params):
+            return unflatten_dict({k: mask_values.get(k, False) for k in flatten_dict(params).keys()})
 
-        optimizer = optax.masked(optimizer, mask=all_mask)
+        optimizer = optax.masked(optimizer, mask=get_mask)
 
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
     text_encoder_state = train_state.TrainState.create(
