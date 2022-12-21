@@ -58,9 +58,9 @@ class FlaxLinearWithLora(nn.Module):
         for k, v in model.parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
-
-        lora.parent = model.parent
+        object.__setattr__(lora, "parent", model.parent)
         lora.__post_init__()
+
         model.parent._state.setup_called = SetupState.DONE
         model.parent._state.in_setup = False
 
