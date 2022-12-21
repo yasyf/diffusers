@@ -84,9 +84,11 @@ class FlaxLinearWithLora(nn.Module):
             if is_target:
                 results = FlaxLinearWithLora._wrap_dense(mutable_params.get(name, {}), child, name)
             elif child.__class__.__name__ in targets:
-                results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child, is_target=True)
+                results = FlaxLinearWithLora.inject(
+                    mutable_params.get(name, {}), child, targets=targets, is_target=True
+                )
             else:
-                results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child)
+                results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child, targets=targets)
 
             mutable_params[name], params_to_optimize[name] = results
 

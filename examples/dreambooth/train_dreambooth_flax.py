@@ -579,15 +579,15 @@ def main():
     )
 
     if args.lora:
-        mask = {}
-        unet_params, mask["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
+        masks = {}
+        unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
         if args.train_text_encoder:
-            text_encoder.params, mask["text_encoder"] = FlaxLinearWithLora.inject(
+            text_encoder.params, masks["text_encoder"] = FlaxLinearWithLora.inject(
                 text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
             )
 
-        mask_values = flatten_dict(mask)
-        print("MARK", mask)
+        mask_values = flatten_dict(dict(itertools.chain([v.entries() for v in masks.values()])))
+        print("MARK", mask_values)
         all_mask = unflatten_dict(
             {
                 k: mask_values.get(k, False)
@@ -598,7 +598,7 @@ def main():
             }
         )
 
-        print(list(flatten_dict(mask).keys())[0])
+        print(list(mask_values.keys())[0])
         print(list(flatten_dict(unet_params).keys())[0])
         print(list(flatten_dict(text_encoder.params).keys())[0])
         print(list(flatten_dict(all_mask).keys())[0])
