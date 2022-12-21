@@ -50,7 +50,6 @@ class FlaxLinearWithLora(nn.Module):
         lora_params["linear"] = params
         lora = lora.bind({"params": lora_params})
 
-        object.__setattr__(model, "parent", lora)
         object.__setattr__(lora, "parent", model.parent)
 
         model.parent._state.in_setup = True
