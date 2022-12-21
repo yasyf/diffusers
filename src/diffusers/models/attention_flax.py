@@ -70,8 +70,13 @@ class FlaxAttentionBlock(nn.Module):
         context = hidden_states if context is None else context
 
         print(self, self._state)
-        import pdb; pdb.set_trace()
-        query_proj = self.query(hidden_states)
+        try:
+            query_proj = self.query(hidden_states)
+        except:
+            import pdb
+
+            pdb.set_trace()
+            raise
         key_proj = self.key(context)
         value_proj = self.value(context)
 
