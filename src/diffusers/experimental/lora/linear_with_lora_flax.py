@@ -49,18 +49,16 @@ class FlaxLinearWithLora(nn.Module):
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         lora_params["linear"] = params
+        lora = lora.bind({"params": lora_params})
 
         model.parent._state.in_setup = True
         model.parent._state.setup_called = SetupState.TRANSFORMED
 
+        object.__setattr__(lora, "parent", model.parent)
         setattr(model.parent, name, lora)
         for k, v in model.parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
-        import pdb
-
-        pdb.set_trace()
-        object.__setattr__(lora, "parent", model.parent)
         lora.__post_init__()
 
         model.parent._state.setup_called = SetupState.DONE
