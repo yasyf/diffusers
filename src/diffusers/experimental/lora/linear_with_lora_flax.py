@@ -44,13 +44,13 @@ class FlaxLinearWithLora(nn.Module):
             out_features=model.features,
             use_bias=model.use_bias,
         )
+        object.__setattr__(lora, "name", name)
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()
         lora_params["linear"] = params
+        lora = lora.bind({"params": lora_params})
 
-        for attr in ["name", "parent", "scope"]:
-            object.__setattr__(lora, attr, object.__getattribute__(model, attr))
-
+        object.__setattr__(lora.parent, name, None)
         model.parent._state.in_setup = True
         setattr(model.parent, name, lora)
         model.parent._state.in_setup = False
