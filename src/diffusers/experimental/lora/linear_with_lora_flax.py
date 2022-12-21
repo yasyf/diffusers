@@ -45,7 +45,6 @@ class FlaxLinearWithLora(nn.Module):
             use_bias=model.use_bias,
             name=name,
         )
-        object.__setattr__(lora, "parent", model.parent)
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         lora_params["linear"] = params
@@ -55,6 +54,9 @@ class FlaxLinearWithLora(nn.Module):
         for k, v in model.parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
+        del model.parent._state.children[name]
+        object.__setattr__(lora, "parent", model.parent)
+        lora.__post_init__()
         model.parent._state.in_setup = False
 
         import pdb
