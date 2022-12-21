@@ -74,7 +74,7 @@ class FlaxLinearWithLora(nn.Module):
         mutable_params = params.unfreeze() if isinstance(params, FrozenDict) else params
         params_to_optimize = {}
 
-        for name, child in FlaxLinearWithLora._get_children(model):
+        for name, child in FlaxLinearWithLora._get_children(model).items():
             if child.__class__.__name__ in targets:
                 results = FlaxLinearWithLora._wrap_dense(mutable_params[name], child)
             else:
