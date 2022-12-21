@@ -69,6 +69,8 @@ class FlaxAttentionBlock(nn.Module):
     def __call__(self, hidden_states, context=None, deterministic=True):
         context = hidden_states if context is None else context
 
+        print(self, self._state)
+        import pdb; pdb.set_trace()
         query_proj = self.query(hidden_states)
         key_proj = self.key(context)
         value_proj = self.value(context)

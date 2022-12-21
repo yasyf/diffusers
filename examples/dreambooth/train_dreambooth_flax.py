@@ -580,7 +580,6 @@ def main():
 
     if args.lora:
         masks = {}
-        print(len(unet_params))
         unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
         if args.train_text_encoder:
             text_encoder._params, masks["text_encoder"] = FlaxLinearWithLora.inject(
