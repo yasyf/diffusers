@@ -586,10 +586,10 @@ def main():
                 text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
             )
 
-        mask_keys = flatten_dict(mask)
+        mask_values = flatten_dict(mask)
         all_mask = unflatten_dict(
             {
-                k: k in mask_keys.get(k, False)
+                k: mask_values.get(k, False)
                 for k in itertools.chain(
                     flatten_dict(unet_params).keys(),
                     flatten_dict(text_encoder.params).keys(),
