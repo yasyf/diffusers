@@ -40,7 +40,7 @@ class FlaxLinearWithLora(nn.Module):
 
     @staticmethod
     def _wrap_dense(params: dict, model: nn.Module):
-        params_to_optimize = defaultdict(lambda: defaultdict(dict))
+        params_to_optimize = defaultdict(dict)
 
         for name, child in FlaxLinearWithLora._get_children(model).items():
             if child.__class__.__name__ == "Dense":
@@ -56,10 +56,11 @@ class FlaxLinearWithLora(nn.Module):
                 params[name] = lora_params
 
                 for n in ["lora_up", "lora_down"]:
-                    params_to_optimize[name][n].update({k: True for k in lora_params[n].keys()})
-                params_to_optimize[name]["linear"].update({k: False for k in lora_params["linear"].keys()})
+                    params_to_optimize[name][n] = {k: True for k in lora_params[n].keys()}
+                params_to_optimize[name]["linear"] = {k: False for k in lora_params["linear"].keys()}
 
-        return params, params_to_optimize
+        print("OPT", params_to_optimize)
+        return params, dict(params_to_optimize)
 
     @staticmethod
     def inject(
