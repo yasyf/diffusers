@@ -69,6 +69,8 @@ class FlaxLinearWithLora(nn.Module):
         ],
     ):
         model = model.bind({"params": params})
+        if hasattr(model, "init_weights"):
+            model.init_weights(jax.random.PRNGKey(0))
 
         mutable_params = params.unfreeze() if isinstance(params, FrozenDict) else params
         params_to_optimize = {}
