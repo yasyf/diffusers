@@ -52,9 +52,12 @@ class FlaxLinearWithLora(nn.Module):
 
         object.__setattr__(lora.parent, name, None)
         model.parent._state.in_setup = True
-        print(f"Adding {name} to {model.parent.name}")
         setattr(model.parent, name, lora)
         model.parent._state.in_setup = False
+
+        import pdb
+
+        pdb.set_trace()
 
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
