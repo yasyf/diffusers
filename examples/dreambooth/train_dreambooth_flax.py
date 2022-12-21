@@ -33,7 +33,7 @@ from diffusers.utils import check_min_version
 from flax import jax_utils
 from flax.training import train_state
 from flax.training.common_utils import shard
-from flax.traverse_util import flatten_dict
+from flax.traverse_util import flatten_dict, unflatten_dict
 from huggingface_hub import HfFolder, Repository, whoami
 from jax.experimental.compilation_cache import compilation_cache as cc
 from PIL import Image
@@ -586,14 +586,16 @@ def main():
                 text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
             )
 
-        mask_keys = set(flatten_dict(mask).keys())
-        all_mask = {
-            k[0]: k[0] in mask_keys
-            for k in itertools.chain(
-                flatten_dict(unet_params).keys(),
-                flatten_dict(text_encoder.params).keys(),
-            )
-        }
+        mask_keys = flatten_dict(mask)
+        all_mask = unflatten_dict(
+            {
+                k: k in mask_keys.get(k, False)
+                for k in itertools.chain(
+                    flatten_dict(unet_params).keys(),
+                    flatten_dict(text_encoder.params).keys(),
+                )
+            }
+        )
 
         print(list(flatten_dict(mask).keys())[0])
         print(list(flatten_dict(unet_params).keys())[0])
