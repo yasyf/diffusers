@@ -68,7 +68,7 @@ class FlaxLinearWithLora(nn.Module):
             "FlaxAttentionBlock",
         ],
     ):
-        print(params)
+        print("PARAMS", params)
         model = model.bind(params)
         model.init_weights(jax.random.PRNGKey(0))
 
