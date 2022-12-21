@@ -24,12 +24,7 @@ class FlaxLinearWithLora(nn.Module):
         self.lora_down = nn.Dense(features=4, use_bias=False)
 
     def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
-        return self.init(
-            rng,
-            jnp.zeros((self.in_features, self.out_features)),
-            jnp.zeros((self.rank, self.out_features)),
-            jax.random.normal(rng, (self.in_features, self.rank)) * (1 / self.rank**2),
-        )
+        return self.init(rng, jnp.zeros((self.in_features, self.out_features)))
 
     def __call__(self, input):
         return self.linear(input) + self.lora_up(self.lora_down(input)) * self.scale
