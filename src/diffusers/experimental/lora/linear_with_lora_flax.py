@@ -45,11 +45,7 @@ class FlaxLoraBase(nn.Module):
 
         params_to_optimize = defaultdict(dict)
 
-        lora = FlaxLinearWithLora(
-            out_features=model.features,
-            use_bias=model.use_bias,
-            name=name,
-        )
+        lora = FlaxLinearWithLora(out_features=model.features, use_bias=model.use_bias, name=name, parent=parent)
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         lora_params["linear"] = params
