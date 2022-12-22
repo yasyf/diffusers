@@ -1,5 +1,6 @@
 import os
 
+import jax
 import optax
 from diffusers import FlaxUNet2DConditionModel
 from diffusers.experimental.lora.linear_with_lora_flax import FlaxLinearWithLora, FlaxLora
