@@ -529,36 +529,6 @@ def main():
     elif args.mixed_precision == "bf16":
         weight_dtype = jnp.bfloat16
 
-    # Load models and create wrapper for stable diffusion
-    text_encoder = FlaxCLIPTextModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype, revision=args.revision
-    )
-    feature_extractor = CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32")
-
-    if args.pretrained_vae_name_or_path:
-        vae_arg, vae_kwargs = (args.pretrained_vae_name_or_path, {"from_pt": True})
-    else:
-        vae_arg, vae_kwargs = (args.pretrained_model_name_or_path, {"subfolder": "vae", "revision": args.revision})
-
-    vae, vae_params = FlaxAutoencoderKL.from_pretrained(
-        vae_arg,
-        dtype=weight_dtype,
-        **vae_kwargs,
-    )
-    unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path,
-        subfolder="unet",
-        dtype=weight_dtype,
-        revision=args.revision,
-    )
-
-    noise_scheduler, _ = FlaxDDPMScheduler.from_pretrained(
-        args.pretrained_model_name_or_path,
-        subfolder="scheduler",
-        revision=args.revision,
-    )
-    noise_scheduler_state = noise_scheduler.create_state()
-
     # Optimization
     if args.scale_lr:
         args.learning_rate = args.learning_rate * total_train_batch_size
@@ -578,33 +548,64 @@ def main():
         adamw,
     )
 
+    # Load models and create wrapper for stable diffusion
+    text_encoder = FlaxCLIPTextModel.from_pretrained(
+        args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype, revision=args.revision
+    )
+    feature_extractor = CLIPFeatureExtractor.from_pretrained("openai/clip-vit-base-patch32")
+
+    if args.pretrained_vae_name_or_path:
+        vae_arg, vae_kwargs = (args.pretrained_vae_name_or_path, {"from_pt": True})
+    else:
+        vae_arg, vae_kwargs = (args.pretrained_model_name_or_path, {"subfolder": "vae", "revision": args.revision})
+
+    vae, vae_params = FlaxAutoencoderKL.from_pretrained(
+        vae_arg,
+        dtype=weight_dtype,
+        **vae_kwargs,
+    )
+
     if args.lora:
         unet = FlaxLora(
-            lambda: FlaxUNet2DConditionModel.from_pretrained(
-                args.pretrained_model_name_or_path,
-                subfolder="unet",
-                dtype=weight_dtype,
-                revision=args.revision,
-            ),
+            FlaxUNet2DConditionModel,
+            {
+                "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
+                "subfolder": "unet",
+                "revision": "flax",
+            },
         )
-        unet_params = unet.params
-        optimizer = optax.masked(optimizer, mask=unet.get_mask)
+        unet_params, get_mask = unet.mask()
+        optimizer = optax.masked(optimizer, mask=get_mask)
+    else:
+        unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="unet",
+            dtype=weight_dtype,
+            revision=args.revision,
+        )
 
-        # masks = {}
-        # unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
-        # if args.train_text_encoder:
-        #     text_encoder._params, masks["text_encoder"] = FlaxLinearWithLora.inject(
-        #         text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
-        #     )
+    noise_scheduler, _ = FlaxDDPMScheduler.from_pretrained(
+        args.pretrained_model_name_or_path,
+        subfolder="scheduler",
+        revision=args.revision,
+    )
+    noise_scheduler_state = noise_scheduler.create_state()
 
-        # mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
+    # masks = {}
+    # unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
+    # if args.train_text_encoder:
+    #     text_encoder._params, masks["text_encoder"] = FlaxLinearWithLora.inject(
+    #         text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
+    #     )
 
-        # def get_mask(params):
-        #     return unflatten_dict(
-        #         {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
-        #     )
+    # mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
 
-        # optimizer = optax.masked(optimizer, mask=get_mask)
+    # def get_mask(params):
+    #     return unflatten_dict(
+    #         {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
+    #     )
+
+    # optimizer = optax.masked(optimizer, mask=get_mask)
 
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
     text_encoder_state = train_state.TrainState.create(
