@@ -1,6 +1,7 @@
 import copy
 from collections import defaultdict
-from typing import Callable, Dict, List, Tuple, Union
+from types import MethodType
+from typing import Callable, Dict, List, Tuple, Type, Union
 
 import flax.linen as nn
 import jax
@@ -98,29 +99,26 @@ class FlaxLoraBase(nn.Module):
         return params, params_to_optimize
 
 
-def FlaxLora(module_fn: Callable[[], Tuple[nn.Module, dict]], targets=["FlaxAttentionBlock"]):
+def FlaxLora(model: Type[nn.Module], kwargs: dict, method="from_pretrained", targets=["FlaxAttentionBlock"]):
     class _FlaxLora(FlaxLoraBase):
         def setup(self):
-            self.wrapped, params = module_fn()
-            self._params, self._mask = self.__class__.inject(params, self.wrapped, targets=targets)
+            self.wrapped, params = getattr(model, method)(**kwargs)
+            self.__class__.inject(params, self.wrapped, targets=targets)
 
         def __call__(self, *args, **kwargs):
             return self.wrapped(*args, **kwargs)
 
         def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
-            x = self.wrapped.init_weights(rng)
-            import pdb; pdb.set_trace()
-            return x
+            return MethodType(model.init_weights, self)(rng)
 
-        @property
-        def params(self) -> dict:
-            return self._params
-
-        @nn.nowrap
-        def get_mask(self, params):
-            mask_values = flatten_dict(self._mask)
-            return unflatten_dict(
+        @classmethod
+        def mask(cls) -> Tuple[dict, Callable[[dict], dict]]:
+            instance, params = getattr(model, method)(**kwargs)
+            params, mask = cls.inject(params, instance, targets=targets)
+            mask_values = flatten_dict(mask)
+            get_mask = lambda params: unflatten_dict(
                 {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
             )
+            return params, get_mask
 
     return _FlaxLora()
