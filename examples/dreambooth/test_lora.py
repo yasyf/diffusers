@@ -14,11 +14,11 @@ config.update("jax_traceback_filtering", "off")
 
 cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 
-unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
-    "runwayml/stable-diffusion-v1-5",
-    subfolder="unet",
-    revision="flax",
-)
+# unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
+#     "runwayml/stable-diffusion-v1-5",
+#     subfolder="unet",
+#     revision="flax",
+# )
 
 unet = FlaxLora(
     FlaxUNet2DConditionModel,
@@ -28,12 +28,8 @@ unet = FlaxLora(
         "revision": "flax",
     },
 )
+unet_params, get_mask = unet.mask()
 
-pdb.set_trace()
-x = unet.init_weights(jax.random.PRNGKey(0))
-
-unet_params = unet.params
-
-optimizer = optax.masked(optax.adamw(1e-6), mask=unet.get_mask)
+optimizer = optax.masked(optax.adamw(1e-6), mask=get_mask)
 
 unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)

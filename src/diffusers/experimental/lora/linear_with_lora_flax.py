@@ -1,11 +1,13 @@
 import copy
 from collections import defaultdict
 from types import MethodType
-from typing import Callable, Dict, List, Tuple, Type, Union
+from typing import Callable, Dict, List, Tuple, Type, Union, cast
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+from diffusers.configuration_utils import ConfigMixin
+from diffusers.modeling_flax_utils import FlaxModelMixin
 from diffusers.models.unet_2d_condition_flax import FlaxUNet2DConditionModel
 from flax.core.frozen_dict import FrozenDict, freeze
 from flax.linen.module import SetupState
@@ -99,21 +101,20 @@ class FlaxLoraBase(nn.Module):
         return params, params_to_optimize
 
 
-def FlaxLora(model: Type[nn.Module], kwargs: dict, method="from_pretrained", targets=["FlaxAttentionBlock"]):
+def FlaxLora(model: Type[ConfigMixin], kwargs: dict, targets=["FlaxAttentionBlock"]):
     class _FlaxLora(FlaxLoraBase):
         def setup(self):
-            self.wrapped, params = getattr(model, method)(**kwargs)
+            config = cast(dict, model.load_config(**kwargs))
+            self.wrapped = cast(nn.Module, model.from_config(config, **kwargs))
+            params = cast(FlaxModelMixin, model).init_weights(jax.random.PRNGKey(0))
             self.__class__.inject(params, self.wrapped, targets=targets)
 
         def __call__(self, *args, **kwargs):
             return self.wrapped(*args, **kwargs)
 
-        def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
-            return MethodType(model.init_weights, self)(rng)
-
         @classmethod
         def mask(cls) -> Tuple[dict, Callable[[dict], dict]]:
-            instance, params = getattr(model, method)(**kwargs)
+            instance, params = cast(FlaxModelMixin, model).from_pretrained(**kwargs)
             params, mask = cls.inject(params, instance, targets=targets)
             mask_values = flatten_dict(mask)
             get_mask = lambda params: unflatten_dict(
