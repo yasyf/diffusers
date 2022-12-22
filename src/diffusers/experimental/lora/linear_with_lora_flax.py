@@ -1,6 +1,6 @@
 import copy
 from collections import defaultdict
-from typing import Callable, List, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 import flax.linen as nn
 import jax
@@ -32,10 +32,8 @@ class FlaxLinearWithLora(nn.Module):
 
 class FlaxLoraBase(nn.Module):
     @staticmethod
-    def _get_children(model: nn.Module, params: Union[dict, FrozenDict]):
-        model = model.bind({"params": params})
-        if hasattr(model, "init_weights"):
-            model.init_weights(jax.random.PRNGKey(0))
+    def _get_children(model: nn.Module) -> Dict[str, nn.Module]:
+        model._try_setup(shallow=True)
         return {k: v for k, v in model._state.children.items() if isinstance(v, nn.Module)}
 
     @staticmethod
@@ -45,7 +43,13 @@ class FlaxLoraBase(nn.Module):
 
         params_to_optimize = defaultdict(dict)
 
-        lora = FlaxLinearWithLora(out_features=model.features, use_bias=model.use_bias, name=name, parent=parent)
+        parent._in_setup = True
+        lora = FlaxLinearWithLora(
+            out_features=model.features,
+            use_bias=model.use_bias,
+            name=name,
+            parent=parent,
+        )
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         lora_params["linear"] = params
@@ -63,6 +67,7 @@ class FlaxLoraBase(nn.Module):
 
         # model.parent._state.setup_called = SetupState.DONE
         # model.parent._state.in_setup = False
+        parent._in_setup = False
 
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
@@ -77,20 +82,20 @@ class FlaxLoraBase(nn.Module):
         targets: List[str],
         is_target: bool = False,
     ):
-        mutable_params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
+        params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
 
-        for name, child in FlaxLoraBase._get_children(model, params).items():
+        for name, child in FlaxLoraBase._get_children(model).items():
             if is_target:
-                results = FlaxLoraBase._wrap_dense(mutable_params.get(name, {}), model, child, name)
+                results = FlaxLoraBase._wrap_dense(params.get(name, {}), model, child, name)
             elif child.__class__.__name__ in targets:
-                results = FlaxLoraBase.inject(mutable_params.get(name, {}), child, targets=targets, is_target=True)
+                results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets, is_target=True)
             else:
-                results = FlaxLoraBase.inject(mutable_params.get(name, {}), child, targets=targets)
+                results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets)
 
-            mutable_params[name], params_to_optimize[name] = results
+            params[name], params_to_optimize[name] = results
 
-        return mutable_params, params_to_optimize
+        return params, params_to_optimize
 
 
 def FlaxLora(module_fn: Callable[[], Tuple[nn.Module, dict]], targets=["FlaxAttentionBlock"]):
