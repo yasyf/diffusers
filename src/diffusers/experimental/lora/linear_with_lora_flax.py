@@ -1,15 +1,14 @@
 import copy
-import re
 from collections import defaultdict
-from typing import Union
+from typing import Callable, List, Tuple, Union
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import optax
+from diffusers.models.unet_2d_condition_flax import FlaxUNet2DConditionModel
 from flax.core.frozen_dict import FrozenDict, freeze
 from flax.linen.module import SetupState
-from flax.traverse_util import flatten_dict
+from flax.traverse_util import flatten_dict, unflatten_dict
 
 
 class FlaxLinearWithLora(nn.Module):
@@ -30,8 +29,13 @@ class FlaxLinearWithLora(nn.Module):
     def __call__(self, input):
         return self.linear(input) + self.lora_up(self.lora_down(input)) * self.scale
 
+
+class FlaxLoraBase(nn.Module):
     @staticmethod
-    def _get_children(model: nn.Module):
+    def _get_children(model: nn.Module, params: Union[dict, FrozenDict]):
+        model = model.bind({"params": params})
+        if hasattr(model, "init_weights"):
+            model.init_weights(jax.random.PRNGKey(0))
         return {k: v for k, v in model._state.children.items() if isinstance(v, nn.Module)}
 
     @staticmethod
@@ -74,28 +78,46 @@ class FlaxLinearWithLora(nn.Module):
     def inject(
         params: Union[dict, FrozenDict],
         model: nn.Module,
-        targets=[
-            "FlaxAttentionBlock",
-        ],
+        targets: List[str],
         is_target: bool = False,
     ):
-        model = model.bind({"params": params})
-        if hasattr(model, "init_weights"):
-            model.init_weights(jax.random.PRNGKey(0))
-
         mutable_params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
 
-        for name, child in FlaxLinearWithLora._get_children(model).items():
+        for name, child in FlaxLoraBase._get_children(model, params).items():
             if is_target:
-                results = FlaxLinearWithLora._wrap_dense(mutable_params.get(name, {}), child, name)
+                results = FlaxLoraBase._wrap_dense(mutable_params.get(name, {}), child, name)
             elif child.__class__.__name__ in targets:
-                results = FlaxLinearWithLora.inject(
-                    mutable_params.get(name, {}), child, targets=targets, is_target=True
-                )
+                results = FlaxLoraBase.inject(mutable_params.get(name, {}), child, targets=targets, is_target=True)
             else:
-                results = FlaxLinearWithLora.inject(mutable_params.get(name, {}), child, targets=targets)
+                results = FlaxLoraBase.inject(mutable_params.get(name, {}), child, targets=targets)
 
             mutable_params[name], params_to_optimize[name] = results
 
         return mutable_params, params_to_optimize
+
+
+def FlaxLora(module_fn: Callable[[], Tuple[nn.Module, dict]], targets=["FlaxAttentionBlock"]):
+    class _FlaxLora(FlaxLoraBase):
+        def setup(self):
+            self.wrapped, params = module_fn()
+            self._params, self._mask = self.__class__.inject(params, self.wrapped, targets=targets)
+
+        def __call__(self, *args, **kwargs):
+            return self.wrapped(*args, **kwargs)
+
+        def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
+            return self.wrapped.init_weights(rng)
+
+        @property
+        def params(self) -> dict:
+            return self._params
+
+        @nn.nowrap
+        def get_mask(self, params):
+            mask_values = flatten_dict(self._mask)
+            return unflatten_dict(
+                {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
+            )
+
+    return _FlaxLora()

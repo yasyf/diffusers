@@ -26,7 +26,7 @@ from diffusers import (
     FlaxStableDiffusionPipeline,
     FlaxUNet2DConditionModel,
 )
-from diffusers.experimental.lora.linear_with_lora_flax import FlaxLinearWithLora
+from diffusers.experimental.lora.linear_with_lora_flax import FlaxLora
 from diffusers.models.vae_flax import FlaxDiagonalGaussianDistribution
 from diffusers.pipelines.stable_diffusion import FlaxStableDiffusionSafetyChecker
 from diffusers.utils import check_min_version
@@ -579,21 +579,32 @@ def main():
     )
 
     if args.lora:
-        masks = {}
-        unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
-        if args.train_text_encoder:
-            text_encoder._params, masks["text_encoder"] = FlaxLinearWithLora.inject(
-                text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
-            )
+        unet = FlaxLora(
+            lambda: FlaxUNet2DConditionModel.from_pretrained(
+                args.pretrained_model_name_or_path,
+                subfolder="unet",
+                dtype=weight_dtype,
+                revision=args.revision,
+            ),
+        )
+        unet_params = unet.params
+        optimizer = optax.masked(optimizer, mask=unet.get_mask)
 
-        mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
+        # masks = {}
+        # unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
+        # if args.train_text_encoder:
+        #     text_encoder._params, masks["text_encoder"] = FlaxLinearWithLora.inject(
+        #         text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
+        #     )
 
-        def get_mask(params):
-            return unflatten_dict(
-                {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
-            )
+        # mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
 
-        optimizer = optax.masked(optimizer, mask=get_mask)
+        # def get_mask(params):
+        #     return unflatten_dict(
+        #         {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
+        #     )
+
+        # optimizer = optax.masked(optimizer, mask=get_mask)
 
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
     text_encoder_state = train_state.TrainState.create(
