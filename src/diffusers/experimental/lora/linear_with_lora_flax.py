@@ -39,7 +39,7 @@ class FlaxLoraBase(nn.Module):
         return {k: v for k, v in model._state.children.items() if isinstance(v, nn.Module)}
 
     @staticmethod
-    def _wrap_dense(params: dict, model: Union[nn.Dense, nn.Module], name: str):
+    def _wrap_dense(params: dict, parent: nn.Module, model: Union[nn.Dense, nn.Module], name: str):
         if not isinstance(model, nn.Dense):
             return params, {}
 
@@ -55,18 +55,18 @@ class FlaxLoraBase(nn.Module):
         lora_params["linear"] = params
         lora = lora.bind({"params": lora_params})
 
-        model.parent._state.in_setup = True
-        model.parent._state.setup_called = SetupState.TRANSFORMED
+        # model.parent._state.in_setup = True
+        # model.parent._state.setup_called = SetupState.TRANSFORMED
 
-        object.__setattr__(lora, "parent", model.parent)
-        setattr(model.parent, name, lora)
+        # object.__setattr__(lora, "parent", model.parent)
+        # setattr(parent, name, lora)
         for k, v in model.parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
-        lora.__post_init__()
+        # lora.__post_init__()
 
-        model.parent._state.setup_called = SetupState.DONE
-        model.parent._state.in_setup = False
+        # model.parent._state.setup_called = SetupState.DONE
+        # model.parent._state.in_setup = False
 
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
@@ -86,7 +86,7 @@ class FlaxLoraBase(nn.Module):
 
         for name, child in FlaxLoraBase._get_children(model, params).items():
             if is_target:
-                results = FlaxLoraBase._wrap_dense(mutable_params.get(name, {}), child, name)
+                results = FlaxLoraBase._wrap_dense(mutable_params.get(name, {}), model, child, name)
             elif child.__class__.__name__ in targets:
                 results = FlaxLoraBase.inject(mutable_params.get(name, {}), child, targets=targets, is_target=True)
             else:
