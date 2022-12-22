@@ -23,6 +23,8 @@ unet = FlaxLora(
         revision="flax",
     ),
 )
+x = unet.init(jax.random.PRNGKey(0))
+
 unet_params = unet.params
 
 optimizer = optax.masked(optax.adamw(1e-6), mask=unet.get_mask)
