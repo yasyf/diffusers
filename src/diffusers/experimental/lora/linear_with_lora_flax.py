@@ -104,15 +104,13 @@ def FlaxLora(module_fn: Callable[[], Tuple[nn.Module, dict]], targets=["FlaxAtte
             self.wrapped, params = module_fn()
             self._params, self._mask = self.__class__.inject(params, self.wrapped, targets=targets)
 
-        def __call__(
-            self,
-            sample,
-            timesteps,
-            encoder_hidden_states,
-            return_dict: bool = True,
-            train: bool = False,
-        ):
-            return self.wrapped(sample, timesteps, encoder_hidden_states, return_dict, train)
+        def __call__(self, *args, **kwargs):
+            return self.wrapped(*args, **kwargs)
+
+        def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
+            x = self.wrapped.init_weights(rng)
+            import pdb; pdb.set_trace()
+            return x
 
         @property
         def params(self) -> dict:
