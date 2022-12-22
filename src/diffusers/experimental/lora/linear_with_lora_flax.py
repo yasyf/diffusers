@@ -106,7 +106,7 @@ def FlaxLora(model: Type[ConfigMixin], kwargs: dict, targets=["FlaxAttentionBloc
         def setup(self):
             config = cast(dict, model.load_config(**kwargs))
             self.wrapped = cast(nn.Module, model.from_config(config, **kwargs))
-            params = cast(FlaxModelMixin, model).init_weights(jax.random.PRNGKey(0))
+            params = cast(FlaxModelMixin, self.wrapped).init_weights(jax.random.PRNGKey(0))
             self.__class__.inject(params, self.wrapped, targets=targets)
 
         def __call__(self, *args, **kwargs):
