@@ -1,4 +1,5 @@
 import os
+import pdb
 
 import jax
 import optax
@@ -20,13 +21,15 @@ unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
 )
 
 unet = FlaxLora(
-    lambda: FlaxUNet2DConditionModel.from_pretrained(
-        "runwayml/stable-diffusion-v1-5",
-        subfolder="unet",
-        revision="flax",
-    ),
+    FlaxUNet2DConditionModel,
+    {
+        "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
+        "subfolder": "unet",
+        "revision": "flax",
+    },
 )
-import pdb; pdb.set_trace()
+
+pdb.set_trace()
 x = unet.init_weights(jax.random.PRNGKey(0))
 
 unet_params = unet.params
