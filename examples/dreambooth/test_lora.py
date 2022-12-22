@@ -26,6 +26,7 @@ unet = FlaxLora(
         revision="flax",
     ),
 )
+import pdb; pdb.set_trace()
 x = unet.init(jax.random.PRNGKey(0))
 
 unet_params = unet.params

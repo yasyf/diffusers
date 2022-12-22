@@ -107,9 +107,6 @@ def FlaxLora(module_fn: Callable[[], Tuple[nn.Module, dict]], targets=["FlaxAtte
         def __call__(self, *args, **kwargs):
             return self.wrapped(*args, **kwargs)
 
-        # def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
-        #     return self.wrapped.init_weights(rng)
-
         @property
         def params(self) -> dict:
             return self._params
