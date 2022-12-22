@@ -5,8 +5,11 @@ import optax
 from diffusers import FlaxUNet2DConditionModel
 from diffusers.experimental.lora.linear_with_lora_flax import FlaxLinearWithLora, FlaxLora
 from flax.training import train_state
+from jax.config import config
 from jax.experimental.compilation_cache import compilation_cache as cc
 
+
+config.update("jax_traceback_filtering", "off")
 
 cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 
