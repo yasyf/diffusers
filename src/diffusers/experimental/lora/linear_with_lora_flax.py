@@ -60,7 +60,7 @@ class FlaxLoraBase(nn.Module):
 
         # object.__setattr__(lora, "parent", model.parent)
         # setattr(parent, name, lora)
-        for k, v in model.parent.__dict__.items():
+        for k, v in parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
         # lora.__post_init__()
