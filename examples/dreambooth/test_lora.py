@@ -27,7 +27,7 @@ unet = FlaxLora(
     ),
 )
 import pdb; pdb.set_trace()
-x = unet.init(jax.random.PRNGKey(0))
+x = unet.init_weights(jax.random.PRNGKey(0))
 
 unet_params = unet.params
 
