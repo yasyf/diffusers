@@ -135,7 +135,7 @@ def FlaxLora2(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
 
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
-            instance, params = cast(FlaxModelMixin, super()).from_pretrained(*args, **kwargs)
+            instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
             params, mask = FlaxLoraBase.inject(params, instance, targets=targets)
             mask_values = flatten_dict(mask)
             instance.get_mask = lambda params: unflatten_dict(
