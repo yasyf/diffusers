@@ -43,6 +43,7 @@ from transformers import CLIPFeatureExtractor, CLIPTokenizer, FlaxCLIPTextModel,
 
 
 cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
+jax.config.update("jax_experimental_subjaxpr_lowering_cache", True)
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.10.0.dev0")

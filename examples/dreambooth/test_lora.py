@@ -4,7 +4,7 @@ import pdb
 import jax
 import optax
 from diffusers import FlaxUNet2DConditionModel
-from diffusers.experimental.lora.linear_with_lora_flax import FlaxLinearWithLora, FlaxLora
+from diffusers.experimental.lora.linear_with_lora_flax import FlaxLinearWithLora, FlaxLora, FlaxLora2
 from flax.training import train_state
 from jax.config import config
 from jax.experimental.compilation_cache import compilation_cache as cc
@@ -20,7 +20,7 @@ cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 #     revision="flax",
 # )
 
-unet = FlaxLora(
+unet = FlaxLora2(
     FlaxUNet2DConditionModel,
     {
         "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
