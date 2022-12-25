@@ -26,7 +26,7 @@ from diffusers import (
     FlaxStableDiffusionPipeline,
     FlaxUNet2DConditionModel,
 )
-from diffusers.experimental.lora.linear_with_lora_flax import FlaxLora
+from diffusers.experimental.lora.linear_with_lora_flax import FlaxLora2
 from diffusers.models.vae_flax import FlaxDiagonalGaussianDistribution
 from diffusers.pipelines.stable_diffusion import FlaxStableDiffusionSafetyChecker
 from diffusers.utils import check_min_version
@@ -567,7 +567,7 @@ def main():
     )
 
     if args.lora:
-        unet = FlaxLora(
+        unet = FlaxLora2(
             FlaxUNet2DConditionModel,
             {
                 "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
