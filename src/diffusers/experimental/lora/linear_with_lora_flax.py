@@ -142,4 +142,6 @@ def FlaxLora2(model: Type[nn.Module], kwargs: dict, targets=["FlaxAttentionBlock
             )
             return params, get_mask
 
+    _FlaxLora.__name__ = model.__name__
+
     return _FlaxLora()
