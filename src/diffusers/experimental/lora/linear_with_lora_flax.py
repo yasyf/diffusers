@@ -127,6 +127,8 @@ def FlaxLora(model: Type[ConfigMixin], kwargs: dict, targets=["FlaxAttentionBloc
 
 
 def FlaxLora2(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
+    config_name = f"{model.config_name}_lora"
+
     class _FlaxLora(model):
         def setup(self):
             super().setup()
@@ -135,7 +137,7 @@ def FlaxLora2(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
 
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
-            instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
+            instance, params = cast(Type[FlaxModelMixin], super()).from_pretrained(*args, **kwargs)
             params, mask = FlaxLoraBase.inject(params, instance, targets=targets)
             mask_values = flatten_dict(mask)
             instance.get_mask = lambda params: unflatten_dict(
@@ -143,6 +145,6 @@ def FlaxLora2(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
             )
             return instance, params
 
-    _FlaxLora.__name__ = model.__name__
+    _FlaxLora.__name__ = f"{model.__name__}Lora"
 
     return _FlaxLora
