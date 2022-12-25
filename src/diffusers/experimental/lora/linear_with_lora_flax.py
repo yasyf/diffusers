@@ -130,7 +130,9 @@ def FlaxLora2(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
     class _FlaxLora(model):
         def setup(self):
             super().setup()
-            params = model().init_weights(jax.random.PRNGKey(0))
+            m = model()
+            m.setup()
+            params = m.init_weights(jax.random.PRNGKey(0))
             FlaxLoraBase.inject(params, self, targets=targets)
 
         @classmethod
