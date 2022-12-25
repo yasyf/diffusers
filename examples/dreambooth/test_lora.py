@@ -14,21 +14,22 @@ config.update("jax_traceback_filtering", "off")
 
 cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 
-# unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
-#     "runwayml/stable-diffusion-v1-5",
-#     subfolder="unet",
-#     revision="flax",
-# )
-
-unet = FlaxLora2(
-    FlaxUNet2DConditionModel,
-    {
-        "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
-        "subfolder": "unet",
-        "revision": "flax",
-    },
+unet, unet_params = FlaxLora2(FlaxUNet2DConditionModel).from_pretrained(
+    "runwayml/stable-diffusion-v1-5",
+    subfolder="unet",
+    revision="flax",
 )
-unet_params, get_mask = unet.mask()
+get_mask = unet.get_mask
+
+# unet = FlaxLora2(
+#     FlaxUNet2DConditionModel,
+#     {
+#         "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
+#         "subfolder": "unet",
+#         "revision": "flax",
+#     },
+# )
+# unet_params, get_mask = unet.mask()
 
 optimizer = optax.masked(optax.adamw(1e-6), mask=get_mask)
 

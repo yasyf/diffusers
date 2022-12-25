@@ -567,16 +567,13 @@ def main():
     )
 
     if args.lora:
-        unet = FlaxLora2(
-            FlaxUNet2DConditionModel,
-            {
-                "pretrained_model_name_or_path": "runwayml/stable-diffusion-v1-5",
-                "subfolder": "unet",
-                "revision": "flax",
-            },
+        unet, unet_params = FlaxLora2(FlaxUNet2DConditionModel).from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="unet",
+            dtype=weight_dtype,
+            revision=args.revision,
         )
-        unet_params, get_mask = unet.mask()
-        optimizer = optax.masked(optimizer, mask=get_mask)
+        optimizer = optax.masked(optimizer, mask=unet.get_mask)
     else:
         unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
             args.pretrained_model_name_or_path,
