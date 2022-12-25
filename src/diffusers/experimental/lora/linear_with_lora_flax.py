@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Tuple, Type, Union, cast
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-from diffusers.configuration_utils import ConfigMixin
+from diffusers.configuration_utils import ConfigMixin, flax_register_to_config
 from diffusers.modeling_flax_utils import FlaxModelMixin
 from diffusers.models.unet_2d_condition_flax import FlaxUNet2DConditionModel
 from flax.core.frozen_dict import FrozenDict, freeze
@@ -102,6 +102,7 @@ class FlaxLoraBase(nn.Module):
 
 
 def FlaxLora(model: Type[ConfigMixin], kwargs: dict, targets=["FlaxAttentionBlock"]):
+    @flax_register_to_config
     class _FlaxLora(FlaxLoraBase):
         def setup(self):
             config = cast(dict, model.load_config(**kwargs))
