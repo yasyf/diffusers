@@ -128,8 +128,6 @@ def FlaxLora(model: Type[ConfigMixin], kwargs: dict, targets=["FlaxAttentionBloc
 def FlaxLora2(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
     @flax_register_to_config
     class _FlaxLora(model):
-        config_name = f"{model.config_name}_lora"
-
         def setup(self):
             super().setup()
             params = cast(FlaxModelMixin, self).init_weights(jax.random.PRNGKey(0))
