@@ -123,3 +123,23 @@ def FlaxLora(model: Type[ConfigMixin], kwargs: dict, targets=["FlaxAttentionBloc
             return params, get_mask
 
     return _FlaxLora()
+
+
+def FlaxLora2(model: Type[nn.Module], kwargs: dict, targets=["FlaxAttentionBlock"]):
+    class _FlaxLora(model):
+        def setup(self):
+            super().setup()
+            params = cast(FlaxModelMixin, self).init_weights(jax.random.PRNGKey(0))
+            FlaxLoraBase.inject(params, self, targets=targets)
+
+        @classmethod
+        def mask(cls) -> Tuple[dict, Callable[[dict], dict]]:
+            instance, params = cast(FlaxModelMixin, model).from_pretrained(**kwargs)
+            params, mask = FlaxLoraBase.inject(params, instance, targets=targets)
+            mask_values = flatten_dict(mask)
+            get_mask = lambda params: unflatten_dict(
+                {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
+            )
+            return params, get_mask
+
+    return _FlaxLora()
