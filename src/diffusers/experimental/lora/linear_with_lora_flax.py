@@ -56,9 +56,8 @@ class FlaxLoraBase(nn.Module):
         # model.parent._state.in_setup = False
 
         parent._state.is_initialized = False
-        parent._in_setup = True
+        parent._state.in_setup = True
         lora = FlaxLinearWithLora(
-            parent=parent,
             out_features=model.features,
             use_bias=model.use_bias,
             name=name,
@@ -73,7 +72,7 @@ class FlaxLoraBase(nn.Module):
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
 
-        parent._in_setup = False
+        parent._state.in_setup = False
         parent._state.is_initialized = True
 
         for n in ["lora_up", "lora_down"]:
