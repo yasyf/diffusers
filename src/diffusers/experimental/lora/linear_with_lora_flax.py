@@ -81,9 +81,6 @@ class FlaxLoraBase(nn.Module):
         params_to_optimize = {}
 
         print("PARAMS", FlaxLoraBase._get_children(model))
-        import pdb
-
-        pdb.set_trace()
         for name, child in FlaxLoraBase._get_children(model).items():
             if is_target:
                 results = FlaxLoraBase._wrap_dense(params.get(name, {}), model, child, name)
