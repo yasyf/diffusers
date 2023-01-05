@@ -111,6 +111,9 @@ class FlaxLoraBase(nn.Module):
 
 def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
     class _FlaxLora(model):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
         def wrap(self):
             for n, attr in {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}.items():
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
@@ -143,14 +146,17 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
 
 def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
     class _LoraFlax(wrap_in_lora(model, targets=targets)):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
-            instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
+            instance, params = cast(Type[FlaxModelMixin], super()).from_pretrained(*args, **kwargs)
 
             params, mask = FlaxLoraBase.inject(params, instance, targets=targets)
 
-            subattrs = {f.name: getattr(instance, f.name) for f in dataclasses.fields(instance) if f.init}
-            instance = cls(**subattrs)
+            # subattrs = {f.name: getattr(instance, f.name) for f in dataclasses.fields(instance) if f.init}
+            # instance = cls(**subattrs)
 
             mask_values = flatten_dict(mask)
             instance.get_mask = lambda params: unflatten_dict(
