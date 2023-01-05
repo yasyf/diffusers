@@ -1,6 +1,7 @@
 import os
 import pdb
 
+import jax
 import optax
 from diffusers import FlaxUNet2DConditionModel
 from diffusers.experimental.lora.linear_with_lora_flax import FlaxLora
@@ -26,4 +27,5 @@ if __name__ == "__main__":
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
 
     bound = unet.bind({"params": unet_params})
+    bound.init_weights(jax.random.PRNGKey(0))
     pdb.set_trace()
