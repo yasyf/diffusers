@@ -42,6 +42,20 @@ class FlaxLoraBase(nn.Module):
 
         params_to_optimize = defaultdict(dict)
 
+        # model.parent._state.in_setup = True
+        # model.parent._state.setup_called = SetupState.TRANSFORMED
+
+        # object.__setattr__(lora, "parent", model.parent)
+        # setattr(parent, name, lora)
+        # for k, v in parent.__dict__.items():
+        #     if isinstance(v, nn.Module) and v.name == name:
+        #         setattr(model.parent, k, lora)
+        # lora.__post_init__()
+
+        # model.parent._state.setup_called = SetupState.DONE
+        # model.parent._state.in_setup = False
+
+        parent._state.is_initialized = False
         parent._in_setup = True
         lora = FlaxLinearWithLora(
             out_features=model.features,
@@ -59,6 +73,7 @@ class FlaxLoraBase(nn.Module):
                 setattr(model.parent, k, lora)
 
         parent._in_setup = False
+        parent._state.is_initialized = True
 
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
