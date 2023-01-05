@@ -11,6 +11,17 @@ from flax.core.frozen_dict import FrozenDict
 from flax.traverse_util import flatten_dict, unflatten_dict
 
 
+def replace_module(parent, old_child, new_child):
+    for k, v in parent.__dict__.items():
+        if isinstance(v, nn.Module) and v.name == old_child.name:
+            object.__setattr__(parent, k, new_child)
+        elif isinstance(v, list):
+            for x in v:
+                replace_module(parent, old_child, x)
+
+    parent._state.children[old_child.name] = new_child
+
+
 class FlaxLinearWithLora(nn.Module):
     out_features: int
     rank: int = 5
@@ -145,11 +156,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 object.__setattr__(instance, "parent", attr.parent)
                 object.__setattr__(instance, "scope", attr.scope)
 
-                for k, v in self.__dict__.items():
-                    if isinstance(v, nn.Module) and v.name == attr.name:
-                        object.__setattr__(self, k, instance)
-
-                self._state.children[n] = instance
+                replace_module(self, attr, instance)
 
         def clone(self, *, parent=None, **updates):
             """Creates a clone of this Module, with optionally updated arguments.
@@ -173,6 +180,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
             self.wrap()
 
     _FlaxLora.__name__ = f"{model.__name__}Lora"
+    _FlaxLora.__annotations__ = model.__annotations__
     return _FlaxLora
 
 
