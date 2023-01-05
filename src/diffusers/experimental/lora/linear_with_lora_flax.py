@@ -115,7 +115,10 @@ class FlaxLoraBase(nn.Module):
 
 
 def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
-    weight_shape = cast(FlaxModelMixin, instance or model()).init_weights(jax.random.PRNGKey(0))
+    if hasattr(model, "init_weights"):
+        weight_shape = cast(FlaxModelMixin, instance or model()).init_weights(jax.random.PRNGKey(0))
+    else:
+        weight_shape = None
 
     class _FlaxLora(model):
         def __init__(self, *args, **kwargs):
@@ -148,7 +151,8 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
 
         def setup(self):
             super().setup()
-            FlaxLoraBase.inject(weight_shape, self, targets=targets)
+            if weight_shape:
+                FlaxLoraBase.inject(weight_shape, self, targets=targets)
             self.wrap()
 
     _FlaxLora.__name__ = f"{model.__name__}Lora"
