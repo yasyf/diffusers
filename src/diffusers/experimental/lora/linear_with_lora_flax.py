@@ -123,20 +123,20 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
 
                 object.__setattr__(self, n, _FlaxLora(**subattrs))
 
-        def clone(self, *, parent=None, **updates):
-            """Creates a clone of this Module, with optionally updated arguments.
+        # def clone(self, *, parent=None, **updates):
+        #     """Creates a clone of this Module, with optionally updated arguments.
 
-            Args:
-            parent: The parent of the clone. The clone will have no parent if no
-                explicit parent is specified.
-            **updates: Attribute updates.
-            Returns:
-            A clone of the this Module with the updated attributes and parent.
-            """
-            self.wrap()
-            attrs = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
-            attrs.update(parent=parent, **updates)
-            return self.__class__(**attrs)
+        #     Args:
+        #     parent: The parent of the clone. The clone will have no parent if no
+        #         explicit parent is specified.
+        #     **updates: Attribute updates.
+        #     Returns:
+        #     A clone of the this Module with the updated attributes and parent.
+        #     """
+        #     self.wrap()
+        #     attrs = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
+        #     attrs.update(parent=parent, **updates)
+        #     return self.__class__(**attrs)
 
         def setup(self):
             super().setup()
