@@ -1,4 +1,5 @@
 import copy
+import dataclasses
 from collections import defaultdict
 from typing import Dict, List, Type, Union, cast
 
@@ -109,12 +110,24 @@ class FlaxLoraBase(nn.Module):
 
 
 def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
-    class _FlaxLora(model):
+    class _FlaxLoraBase:
+        def wrap(self):
+            for n, attr in {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}.items():
+                klass = attr.__class__
+                subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
+
+                class _FlaxLora(_FlaxLoraBase, klass):
+                    pass
+
+                object.__setattr__(self, n, _FlaxLora(**subattrs))
+
         def setup(self):
             super().setup()
             params = cast(FlaxModelMixin, self).init_weights(jax.random.PRNGKey(0))
             FlaxLoraBase.inject(params, self, targets=targets)
+            self.wrap()
 
+    class _FlaxLora(_FlaxLoraBase, model):
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
             instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
