@@ -76,6 +76,8 @@ class FlaxLoraBase(nn.Module):
         params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
 
+        print("PARAMS", FlaxLoraBase._get_children(model))
+        import pdb; pdb.set_trace()
         for name, child in FlaxLoraBase._get_children(model).items():
             if is_target:
                 results = FlaxLoraBase._wrap_dense(params.get(name, {}), model, child, name)
@@ -100,6 +102,7 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
             instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
+            print("INJECTING")
             params, mask = FlaxLoraBase.inject(params, instance, targets=targets)
             mask_values = flatten_dict(mask)
             instance.get_mask = lambda params: unflatten_dict(
