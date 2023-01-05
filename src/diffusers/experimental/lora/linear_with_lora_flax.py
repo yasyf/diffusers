@@ -73,6 +73,10 @@ class FlaxLoraBase(nn.Module):
         targets: List[str],
         is_target: bool = False,
     ):
+        model = model.bind({"params": params})
+        if hasattr(model, "init_weights"):
+            model.init_weights(jax.random.PRNGKey(0))
+
         params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
 
@@ -105,7 +109,6 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
         def from_pretrained(cls, *args, **kwargs):
             instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
 
-            instance.init_weights(jax.random.PRNGKey(0))
             params, mask = FlaxLoraBase.inject(params, instance, targets=targets)
 
             mask_values = flatten_dict(mask)
