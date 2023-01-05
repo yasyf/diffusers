@@ -25,4 +25,5 @@ if __name__ == "__main__":
     optimizer = optax.masked(optax.adamw(1e-6), mask=get_mask)
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
 
+    bound = unet.bind({"params": unet_params})
     pdb.set_trace()

@@ -119,6 +119,8 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
                 class _FlaxLora(_FlaxLoraBase, klass):
                     pass
 
+                _FlaxLora.__name__ = f"{klass.__name__}Lora"
+
                 object.__setattr__(self, n, _FlaxLora(**subattrs))
 
         def setup(self):
