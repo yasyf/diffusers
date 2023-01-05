@@ -114,8 +114,8 @@ class FlaxLoraBase(nn.Module):
         return params, params_to_optimize
 
 
-def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
-    weight_shape = cast(FlaxModelMixin, model()).init_weights(jax.random.PRNGKey(0))
+def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
+    weight_shape = cast(FlaxModelMixin, instance or model()).init_weights(jax.random.PRNGKey(0))
 
     class _FlaxLora(model):
         def __init__(self, *args, **kwargs):
@@ -129,7 +129,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
                 print("HERE", n)
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
                 print(subattrs.keys())
-                object.__setattr__(self, n, wrap_in_lora(attr.__class__, targets=targets)(**subattrs))
+                object.__setattr__(self, n, wrap_in_lora(attr.__class__, instance=attr, targets=targets)(**subattrs))
 
         def clone(self, *, parent=None, **updates):
             """Creates a clone of this Module, with optionally updated arguments.
