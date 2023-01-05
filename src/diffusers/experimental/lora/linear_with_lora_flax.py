@@ -134,6 +134,9 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 print(subattrs.keys())
                 klass = wrap_in_lora(attr.__class__, instance=attr, targets=targets)
                 object.__delattr__(self, n)
+                import pdb
+
+                pdb.set_trace()
                 object.__setattr__(self, n, klass(**subattrs))
 
         def clone(self, *, parent=None, **updates):
