@@ -144,7 +144,10 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
             FlaxLoraBase.inject(params, self, targets=targets)
             self.wrap()
 
-    class _FlaxLora(_FlaxLoraBase, model):
+    class _FlaxLora(model):
+        wrap = _FlaxLoraBase.wrap
+        setup = _FlaxLoraBase.setup
+
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
             instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
