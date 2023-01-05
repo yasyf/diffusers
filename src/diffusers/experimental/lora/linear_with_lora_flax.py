@@ -138,6 +138,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 object.__setattr__(instance, "parent", attr.parent)
                 object.__setattr__(instance, "scope", attr.scope)
                 object.__setattr__(self, n, instance)
+                self._state.children[n] = instance
 
         def clone(self, *, parent=None, **updates):
             """Creates a clone of this Module, with optionally updated arguments.
