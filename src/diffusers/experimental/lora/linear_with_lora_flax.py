@@ -114,20 +114,27 @@ class FlaxLoraBase(nn.Module):
         return params, params_to_optimize
 
 
+class LoRA:
+    pass
+
+
 def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
     if hasattr(model, "init_weights"):
         weight_shape = cast(FlaxModelMixin, instance or model()).init_weights(jax.random.PRNGKey(0))
     else:
         weight_shape = None
 
-    class _FlaxLora(model):
+    class _FlaxLora(model, LoRA):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
 
         def wrap(self):
-            for n, attr in self.__dict__.items():
+            for n, attr in self._state.children.items():
                 if not isinstance(attr, nn.Module):
                     print("HERE2", n.__class__.__name__)
+                    continue
+                if isinstance(attr, LoRA):
+                    print("HERE3", n)
                     continue
                 print("HERE", n)
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
@@ -137,7 +144,11 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 instance = klass(**subattrs)
                 object.__setattr__(instance, "parent", attr.parent)
                 object.__setattr__(instance, "scope", attr.scope)
-                object.__setattr__(self, n, instance)
+
+                for k, v in self.__dict__.items():
+                    if isinstance(v, nn.Module) and v.name == attr.name:
+                        object.__setattr__(self, k, instance)
+
                 self._state.children[n] = instance
 
         def clone(self, *, parent=None, **updates):
