@@ -73,6 +73,8 @@ class FlaxLoraBase(nn.Module):
         for k, v in parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
+
+        parent._state.children[name] = lora
         lora.__post_init__()
 
         parent._state.in_setup = False
