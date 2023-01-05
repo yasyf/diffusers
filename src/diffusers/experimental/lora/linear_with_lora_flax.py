@@ -109,19 +109,12 @@ class FlaxLoraBase(nn.Module):
         return params, params_to_optimize
 
 
-def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
-    class _FlaxLoraBase(nn.Module):
+def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
+    class _FlaxLora(model):
         def wrap(self):
             for n, attr in {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}.items():
-                klass = attr.__class__
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
-
-                class _FlaxLora(_FlaxLoraBase, klass):
-                    pass
-
-                _FlaxLora.__name__ = f"{klass.__name__}Lora"
-
-                object.__setattr__(self, n, _FlaxLora(**subattrs))
+                object.__setattr__(self, n, wrap_in_lora(attr.__class__, targets=targets)(**subattrs))
 
         # def clone(self, *, parent=None, **updates):
         #     """Creates a clone of this Module, with optionally updated arguments.
@@ -144,10 +137,12 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
             FlaxLoraBase.inject(params, self, targets=targets)
             self.wrap()
 
-    class _FlaxLora(model, _FlaxLoraBase):
-        def setup(self):
-            _FlaxLoraBase.setup(self)
+    _FlaxLora.__name__ = f"{model.__name__}Lora"
+    return _FlaxLora
 
+
+def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
+    class _LoraFlax(wrap_in_lora(model, targets=targets)):
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
             instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
@@ -163,6 +158,5 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
             )
             return instance, params
 
-    _FlaxLora.__name__ = f"{model.__name__}Lora"
-
-    return _FlaxLora
+    _LoraFlax.__name__ = f"Lora{model.__name__}"
+    return _LoraFlax
