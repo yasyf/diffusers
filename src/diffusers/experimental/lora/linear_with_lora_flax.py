@@ -58,6 +58,7 @@ class FlaxLoraBase(nn.Module):
         parent._state.is_initialized = False
         parent._in_setup = True
         lora = FlaxLinearWithLora(
+            parent=parent,
             out_features=model.features,
             use_bias=model.use_bias,
             name=name,
