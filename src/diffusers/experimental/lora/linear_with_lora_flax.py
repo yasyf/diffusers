@@ -62,6 +62,7 @@ class FlaxLoraBase(nn.Module):
             out_features=model.features,
             use_bias=model.use_bias,
             name=name,
+            parent=None,
         )
         object.__setattr__(lora, "parent", model.parent)
 
