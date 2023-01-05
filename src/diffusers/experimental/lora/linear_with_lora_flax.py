@@ -158,8 +158,12 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
             instance = cls(**subattrs)
 
             mask_values = flatten_dict(mask)
-            instance.get_mask = lambda params: unflatten_dict(
-                {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
+            object.__setattr__(
+                instance,
+                "get_mask",
+                lambda params: unflatten_dict(
+                    {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
+                ),
             )
             return instance, params
 
