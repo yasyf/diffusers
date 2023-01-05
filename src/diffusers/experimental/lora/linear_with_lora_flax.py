@@ -122,11 +122,12 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
             super().__init__(*args, **kwargs)
 
         def wrap(self):
-            for n, attr in {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}.items():
+            for n, attr in self.__dict__.items():
                 if not isinstance(attr, nn.Module):
                     continue
                 print("HERE", n)
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
+                print(subattrs.keys())
                 object.__setattr__(self, n, wrap_in_lora(attr.__class__, targets=targets)(**subattrs))
 
         def clone(self, *, parent=None, **updates):
