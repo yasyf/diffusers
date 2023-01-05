@@ -20,6 +20,8 @@ if __name__ == "__main__":
     )
     get_mask = unet.get_mask
 
+    assert "lora_up" in unet_params["up_blocks_1"]["attentions_1"]["transformer_blocks_0"]["attn1"]["to_q"].keys()
+
     optimizer = optax.masked(optax.adamw(1e-6), mask=get_mask)
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
 

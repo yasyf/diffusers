@@ -95,7 +95,6 @@ class FlaxLoraBase(nn.Module):
         params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
 
-        print("PARAMS", FlaxLoraBase._get_children(model))
         for name, child in FlaxLoraBase._get_children(model).items():
             if is_target:
                 results = FlaxLoraBase._wrap_dense(params.get(name, {}), model, child, name)
@@ -105,7 +104,6 @@ class FlaxLoraBase(nn.Module):
                 results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets)
 
             params[name], params_to_optimize[name] = results
-            print(name, params_to_optimize[name].keys())
 
         return params, params_to_optimize
 
