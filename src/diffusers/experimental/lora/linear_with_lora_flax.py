@@ -73,6 +73,7 @@ class FlaxLoraBase(nn.Module):
         for k, v in parent.__dict__.items():
             if isinstance(v, nn.Module) and v.name == name:
                 setattr(model.parent, k, lora)
+        lora.__post_init__()
 
         parent._state.in_setup = False
         parent._state.is_initialized = True
@@ -120,26 +121,26 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
 
         def wrap(self):
             for n, attr in {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}.items():
-                print("HERE", n)
                 if not isinstance(attr, nn.Module):
                     continue
+                print("HERE", n)
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
                 object.__setattr__(self, n, wrap_in_lora(attr.__class__, targets=targets)(**subattrs))
 
-        # def clone(self, *, parent=None, **updates):
-        #     """Creates a clone of this Module, with optionally updated arguments.
+        def clone(self, *, parent=None, **updates):
+            """Creates a clone of this Module, with optionally updated arguments.
 
-        #     Args:
-        #     parent: The parent of the clone. The clone will have no parent if no
-        #         explicit parent is specified.
-        #     **updates: Attribute updates.
-        #     Returns:
-        #     A clone of the this Module with the updated attributes and parent.
-        #     """
-        #     self.wrap()
-        #     attrs = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
-        #     attrs.update(parent=parent, **updates)
-        #     return self.__class__(**attrs)
+            Args:
+            parent: The parent of the clone. The clone will have no parent if no
+                explicit parent is specified.
+            **updates: Attribute updates.
+            Returns:
+            A clone of the this Module with the updated attributes and parent.
+            """
+            self.wrap()
+            attrs = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
+            attrs.update(parent=parent, **updates)
+            return self.__class__(**attrs)
 
         def setup(self):
             super().setup()
