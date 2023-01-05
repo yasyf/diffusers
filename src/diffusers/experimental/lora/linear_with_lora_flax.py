@@ -132,7 +132,9 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 print("HERE", n)
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
                 print(subattrs.keys())
-                object.__setattr__(self, n, wrap_in_lora(attr.__class__, instance=attr, targets=targets)(**subattrs))
+                klass = wrap_in_lora(attr.__class__, instance=attr, targets=targets)
+                object.__delattr__(self, n)
+                object.__setattr__(self, n, klass(**subattrs))
 
         def clone(self, *, parent=None, **updates):
             """Creates a clone of this Module, with optionally updated arguments.
