@@ -136,7 +136,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
 
         def setup(self):
             super().setup()
-            params = cast(FlaxModelMixin, self).init_weights(jax.random.PRNGKey(0))
+            params = cast(FlaxModelMixin, self.clone()).init_weights(jax.random.PRNGKey(0))
             FlaxLoraBase.inject(params, self, targets=targets)
             self.wrap()
 
