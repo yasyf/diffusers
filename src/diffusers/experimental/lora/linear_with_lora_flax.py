@@ -124,6 +124,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
         def wrap(self):
             for n, attr in self.__dict__.items():
                 if not isinstance(attr, nn.Module):
+                    print("HERE2", n.__class__.__name__)
                     continue
                 print("HERE", n)
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
