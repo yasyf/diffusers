@@ -110,7 +110,7 @@ class FlaxLoraBase(nn.Module):
 
 
 def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
-    class _FlaxLoraBase:
+    class _FlaxLoraBase(nn.Module):
         def wrap(self):
             for n, attr in {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}.items():
                 klass = attr.__class__
