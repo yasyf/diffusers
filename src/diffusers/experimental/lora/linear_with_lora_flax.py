@@ -5,7 +5,7 @@ from typing import Dict, List, Type, Union, cast
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-from diffusers.modeling_flax_utils import FlaxModelMixin
+from diffusers.models.modeling_flax_utils import FlaxModelMixin
 from flax.core.frozen_dict import FrozenDict
 from flax.traverse_util import flatten_dict, unflatten_dict
 
