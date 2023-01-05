@@ -91,7 +91,8 @@ class FlaxLoraBase(nn.Module):
     ):
         if not model._state.in_setup:
             model = model.bind({"params": params})
-            model.init_weights(jax.random.PRNGKey(0))
+            if hasattr(model, "init_weights"):
+                model.init_weights(jax.random.PRNGKey(0))
 
         params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
