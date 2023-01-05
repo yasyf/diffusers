@@ -120,6 +120,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
 
         def wrap(self):
             for n, attr in {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}.items():
+                print("HERE", n)
                 subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
                 object.__setattr__(self, n, wrap_in_lora(attr.__class__, targets=targets)(**subattrs))
 
