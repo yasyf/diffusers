@@ -85,6 +85,7 @@ class FlaxLoraBase(nn.Module):
                 results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets)
 
             params[name], params_to_optimize[name] = results
+            print(name, params_to_optimize[name].keys())
 
         return params, params_to_optimize
 
