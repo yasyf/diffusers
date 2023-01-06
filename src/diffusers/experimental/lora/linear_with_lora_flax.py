@@ -172,7 +172,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
     return _FlaxLora
 
 
-def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
+def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock", "FlaxGEGLU"]):
     targets = targets + [f"{t}Lora" for t in targets]
 
     class _LoraFlax(wrap_in_lora(model, targets=targets)):
