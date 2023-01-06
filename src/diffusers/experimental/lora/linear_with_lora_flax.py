@@ -82,9 +82,10 @@ class FlaxLoraBase(nn.Module):
         # print("lora_params", lora_params)
         lora_params = {}
         lora_params["linear"] = params
-        lora_params["lora_down"] = {
-            "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
-        }
+        # lora_params["lora_down"] = {
+        #     "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
+        # }
+        lora_params["lora_down"] = {"kernel": jnp.zeros((lora.rank, lora.features))}
         lora_params["lora_up"] = {"kernel": jnp.zeros((lora.rank, lora.features))}
         lora = lora.bind({"params": lora_params})
 
