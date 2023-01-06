@@ -161,7 +161,6 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 else:
                     subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
                     subattrs["parent"] = None
-                    print(subattrs.keys())
                     klass = wrap_in_lora(attr.__class__, instance=attr, targets=targets)
                     instance = klass(**subattrs)
 
@@ -203,6 +202,8 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
 
 
 def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
+    targets = targets + [f"{t}Lora" for t in targets]
+
     class _LoraFlax(wrap_in_lora(model, targets=targets)):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -226,5 +227,5 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
             )
             return instance, params
 
-    _LoraFlax.__name__ = f"Lora{model.__name__}"
+    _LoraFlax.__name__ = f"{model.__name__}WithLora"
     return _LoraFlax
