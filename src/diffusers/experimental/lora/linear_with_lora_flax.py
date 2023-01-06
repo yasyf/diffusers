@@ -70,7 +70,7 @@ class FlaxLoraBase(nn.Module):
         parent._state.is_initialized = False
         parent._state.in_setup = True
         lora = FlaxLinearWithLora(
-            out_features=model.features,
+            features=model.features,
             use_bias=model.use_bias,
             name=name,
             parent=None,
@@ -146,7 +146,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
 
                 if self.__class__.__name__ in targets and isinstance(attr, nn.Dense):
                     instance = FlaxLinearWithLora(
-                        out_features=attr.features,
+                        features=attr.features,
                         use_bias=attr.use_bias,
                         name=attr.name,
                         parent=None,
