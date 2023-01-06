@@ -37,8 +37,8 @@ class FlaxLinearWithLora(nn.Module):
     @nn.compact
     def __call__(self, inputs):
         linear = nn.Dense(features=self.features, use_bias=self.use_bias, name="linear")
-        lora_up = nn.Dense(features=self.features, use_bias=False, kernel_init=zeros, name="lora_up")
         lora_down = nn.Dense(features=self.rank, use_bias=False, name="lora_down")
+        lora_up = nn.Dense(features=self.features, use_bias=False, kernel_init=zeros, name="lora_up")
 
         return linear(inputs) + lora_up(lora_down(inputs)) * self.scale
 
@@ -88,7 +88,7 @@ class FlaxLoraBase(nn.Module):
         lora_params["lora_down"] = {
             "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
         }
-        lora_params["lora_up"] = {"kernel": jnp.zeros(jax.random.PRNGKey(0), (lora.rank, lora.features))}
+        lora_params["lora_up"] = {"kernel": jnp.zeros((lora.rank, lora.features))}
         lora = lora.bind({"params": lora_params})
 
         replace_module(parent, model, lora)
