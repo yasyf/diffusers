@@ -16,8 +16,10 @@ def replace_module(parent, old_child, new_child):
         if isinstance(v, nn.Module) and v.name == old_child.name:
             object.__setattr__(parent, k, new_child)
         elif isinstance(v, (list, tuple)):
+            print(k)
             for i, c in enumerate(v):
-                print(c.name, old_child.name)
+                if isinstance(c, nn.Module):
+                    print(c.name, old_child.name)
                 if isinstance(c, nn.Module) and c.name == old_child.name:
                     parent[k][i] = new_child
 
