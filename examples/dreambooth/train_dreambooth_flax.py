@@ -48,6 +48,9 @@ jax.config.update("jax_experimental_subjaxpr_lowering_cache", True)
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.10.0.dev0")
 
+# Cache compiled models across invocations of this script.
+cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
+
 logger = logging.getLogger(__name__)
 
 
@@ -132,7 +135,7 @@ def parse_args():
         type=str,
         help="The output directory where the model predictions and checkpoints will be written.",
     )
-    parser.add_argument("--save_steps", type=int, default=None, help="Save checkpoint every X updates steps.")
+    parser.add_argument("--save_steps", type=int, default=None, help="Save a checkpoint every X steps.")
     parser.add_argument("--seed", type=int, default=0, help="A seed for reproducible training.")
     parser.add_argument(
         "--resolution",
@@ -473,7 +476,7 @@ def main():
             args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
         )
     else:
-        raise NotImplementedError()
+        raise NotImplementedError("No tokenizer specified!")
 
     train_dataset = DreamBoothDataset(
         instance_data_root=args.instance_data_dir,
@@ -566,44 +569,12 @@ def main():
         **vae_kwargs,
     )
 
-    if args.lora:
-        unet, unet_params = FlaxLora2(FlaxUNet2DConditionModel).from_pretrained(
-            args.pretrained_model_name_or_path,
-            subfolder="unet",
-            dtype=weight_dtype,
-            revision=args.revision,
-        )
-        optimizer = optax.masked(optimizer, mask=unet.get_mask)
-    else:
-        unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
-            args.pretrained_model_name_or_path,
-            subfolder="unet",
-            dtype=weight_dtype,
-            revision=args.revision,
-        )
-
     noise_scheduler, _ = FlaxDDPMScheduler.from_pretrained(
         args.pretrained_model_name_or_path,
         subfolder="scheduler",
         revision=args.revision,
     )
     noise_scheduler_state = noise_scheduler.create_state()
-
-    # masks = {}
-    # unet_params, masks["unet"] = FlaxLinearWithLora.inject(unet_params, unet)
-    # if args.train_text_encoder:
-    #     text_encoder._params, masks["text_encoder"] = FlaxLinearWithLora.inject(
-    #         text_encoder.params, text_encoder.module, targets=["FlaxCLIPAttention"]
-    #     )
-
-    # mask_values = flatten_dict(dict(itertools.chain(*[v.items() for v in masks.values()])))
-
-    # def get_mask(params):
-    #     return unflatten_dict(
-    #         {k: mask_values.get(k, False) for k in flatten_dict(params, keep_empty_nodes=True).keys()}
-    #     )
-
-    # optimizer = optax.masked(optimizer, mask=get_mask)
 
     unet_state = train_state.TrainState.create(apply_fn=unet.__call__, params=unet_params, tx=optimizer)
     text_encoder_state = train_state.TrainState.create(
@@ -692,7 +663,79 @@ def main():
 
         params = {"vae_params": vae_params, "unet": unet_state.params}
         if args.train_text_encoder:
-            params["text_encoder"] = text_encoder_state.params
+            params = {"text_encoder": text_encoder_state.params, "unet": unet_state.params}
+        else:
+            params = {"unet": unet_state.params}
+
+        def compute_loss(params):
+            # Convert images to latent space
+            vae_outputs = vae.apply(
+                {"params": vae_params}, batch["pixel_values"], deterministic=True, method=vae.encode
+            )
+            latents = vae_outputs.latent_dist.sample(sample_rng)
+            # (NHWC) -> (NCHW)
+            latents = jnp.transpose(latents, (0, 3, 1, 2))
+            latents = latents * 0.18215
+
+            # Sample noise that we'll add to the latents
+            noise_rng, timestep_rng = jax.random.split(sample_rng)
+            noise = jax.random.normal(noise_rng, latents.shape)
+            # Sample a random timestep for each image
+            bsz = latents.shape[0]
+            timesteps = jax.random.randint(
+                timestep_rng,
+                (bsz,),
+                0,
+                noise_scheduler.config.num_train_timesteps,
+            )
+
+            # Add noise to the latents according to the noise magnitude at each timestep
+            # (this is the forward diffusion process)
+            noisy_latents = noise_scheduler.add_noise(noise_scheduler_state, latents, noise, timesteps)
+
+            # Get the text embedding for conditioning
+            if args.train_text_encoder:
+                encoder_hidden_states = text_encoder_state.apply_fn(
+                    batch["input_ids"], params=params["text_encoder"], dropout_rng=dropout_rng, train=True
+                )[0]
+            else:
+                encoder_hidden_states = text_encoder(
+                    batch["input_ids"], params=text_encoder_state.params, train=False
+                )[0]
+
+            # Predict the noise residual
+            model_pred = unet.apply(
+                {"params": params["unet"]}, noisy_latents, timesteps, encoder_hidden_states, train=True
+            ).sample
+
+            # Get the target for loss depending on the prediction type
+            if noise_scheduler.config.prediction_type == "epsilon":
+                target = noise
+            elif noise_scheduler.config.prediction_type == "v_prediction":
+                target = noise_scheduler.get_velocity(noise_scheduler_state, latents, noise, timesteps)
+            else:
+                raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
+
+            if args.with_prior_preservation:
+                # Chunk the noise and noise_pred into two parts and compute the loss on each part separately.
+                model_pred, model_pred_prior = jnp.split(model_pred, 2, axis=0)
+                target, target_prior = jnp.split(target, 2, axis=0)
+
+                # Compute instance loss
+                loss = (target - model_pred) ** 2
+                loss = loss.mean()
+
+                # Compute prior loss
+                prior_loss = (target_prior - model_pred_prior) ** 2
+                prior_loss = prior_loss.mean()
+
+                # Add the prior loss to the instance loss.
+                loss = loss + args.prior_loss_weight * prior_loss
+            else:
+                loss = (target - model_pred) ** 2
+                loss = loss.mean()
+
+            return loss
 
         grad_fn = jax.value_and_grad(compute_loss)
         loss, grad = grad_fn(params, dropout_rng, sample_rng, batch)
@@ -775,40 +818,36 @@ def main():
     logger.info(f"  Total train batch size (w. parallel & distributed) = {total_train_batch_size}")
     logger.info(f"  Total optimization steps = {args.max_train_steps}")
 
-    def checkpoint(step):
-        # Create the pipeline using using the trained modules and save it.
-        if jax.process_index() == 0:
-            print(f"Checkpointing at step {step}...")
+    def checkpoint(step=None):
+        # Create the pipeline using the trained modules and save it.
+        scheduler, _ = FlaxPNDMScheduler.from_pretrained("CompVis/stable-diffusion-v1-4", subfolder="scheduler")
+        safety_checker = FlaxStableDiffusionSafetyChecker.from_pretrained(
+            "CompVis/stable-diffusion-safety-checker", from_pt=True
+        )
+        pipeline = FlaxStableDiffusionPipeline(
+            text_encoder=text_encoder,
+            vae=vae,
+            unet=unet,
+            tokenizer=tokenizer,
+            scheduler=scheduler,
+            safety_checker=safety_checker,
+            feature_extractor=feature_extractor,
+        )
 
-            scheduler = FlaxPNDMScheduler(
-                beta_start=0.00085,
-                beta_end=0.012,
-                beta_schedule="scaled_linear",
-                skip_prk_steps=True,
-            )
-            pipeline = FlaxStableDiffusionPipeline(
-                text_encoder=text_encoder,
-                vae=vae,
-                unet=unet,
-                tokenizer=tokenizer,
-                scheduler=scheduler,
-                safety_checker=None,
-                feature_extractor=feature_extractor,
-                dtype=weight_dtype,
-            )
-            outdir = os.path.join(args.output_dir, str(step)) if args.save_steps else args.output_dir
+        outdir = os.path.join(args.output_dir, str(step)) if step else args.output_dir
+        pipeline.save_pretrained(
+            outdir,
+            params={
+                "text_encoder": get_params_to_save(text_encoder_state.params),
+                "vae": get_params_to_save(vae_params),
+                "unet": get_params_to_save(unet_state.params),
+                "safety_checker": safety_checker.params,
+            },
+        )
 
-            pipeline.save_pretrained(
-                outdir,
-                params={
-                    "text_encoder": get_params_to_save(text_encoder_state.params),
-                    "vae": get_params_to_save(vae_params),
-                    "unet": get_params_to_save(unet_state.params),
-                },
-            )
-
-            if args.push_to_hub:
-                repo.push_to_hub(commit_message="End of training", blocking=False, auto_lfs_prune=True)
+        if args.push_to_hub:
+            message = f"checkpoint-{step}" if step is not None else "End of training"
+            repo.push_to_hub(commit_message=message, blocking=False, auto_lfs_prune=True)
 
     global_step = 0
 
@@ -831,7 +870,7 @@ def main():
             train_step_progress_bar.update(jax.local_device_count())
 
             global_step += 1
-            if args.save_steps and global_step % args.save_steps == 0:
+            if jax.process_index() == 0 and args.save_steps and global_step % args.save_steps == 0:
                 checkpoint(global_step)
             if global_step >= args.max_train_steps:
                 break
@@ -841,8 +880,8 @@ def main():
         train_step_progress_bar.close()
         epochs.write(f"Epoch... ({epoch + 1}/{args.num_train_epochs} | Loss: {train_metric['loss']})")
 
-    if not args.save_steps or global_step % args.save_steps:
-        checkpoint(global_step)
+    if jax.process_index() == 0:
+        checkpoint()
 
 
 if __name__ == "__main__":
