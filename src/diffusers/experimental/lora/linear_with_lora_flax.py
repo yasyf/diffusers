@@ -116,6 +116,7 @@ class FlaxLoraBase(nn.Module):
 
         for name, child in FlaxLoraBase._get_children(model).items():
             if is_target:
+                print("INJECTING", name)
                 results = FlaxLoraBase._wrap_dense(params.get(name, {}), model, child, name)
             elif child.__class__.__name__ in targets:
                 results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets, is_target=True)
@@ -149,12 +150,23 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 if isinstance(attr, LoRA):
                     print("HERE3", n)
                     continue
-                print("HERE", n)
-                subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
-                subattrs["parent"] = None
-                print(subattrs.keys())
-                klass = wrap_in_lora(attr.__class__, instance=attr, targets=targets)
-                instance = klass(**subattrs)
+
+                if self.__class__.__name__ in targets and isinstance(attr, nn.Dense):
+                    instance = FlaxLinearWithLora(
+                        out_features=attr.features,
+                        use_bias=attr.use_bias,
+                        name=attr.name,
+                        parent=None,
+                    )
+                else:
+                    subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
+                    subattrs["parent"] = None
+                    print(subattrs.keys())
+                    klass = wrap_in_lora(attr.__class__, instance=attr, targets=targets)
+                    instance = klass(**subattrs)
+
+                print("HERE", n, instance.__class__.__name__)
+
                 object.__setattr__(instance, "parent", attr.parent)
                 object.__setattr__(instance, "scope", attr.scope)
 
