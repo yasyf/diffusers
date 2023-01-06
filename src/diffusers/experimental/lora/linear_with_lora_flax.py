@@ -27,22 +27,18 @@ def replace_module(parent, old_child, new_child):
 
 
 class FlaxLinearWithLora(nn.Module):
-    out_features: int
+    features: int
     rank: int = 5
-    in_features: int = 1
     scale: float = 1.0
     use_bias: bool = True
 
-    def setup(self):
-        self.linear = nn.Dense(features=self.out_features, use_bias=self.use_bias)
-        self.lora_up = nn.Dense(features=self.out_features, use_bias=False)
-        self.lora_down = nn.Dense(features=self.rank, use_bias=False)
+    @nn.compact
+    def __call__(self, inputs):
+        linear = nn.Dense(features=self.features, use_bias=self.use_bias)
+        lora_up = nn.Dense(features=self.features, use_bias=False)
+        lora_down = nn.Dense(features=self.rank, use_bias=False)
 
-    def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
-        return self.init(rng, jnp.zeros((self.in_features, self.out_features)))
-
-    def __call__(self, input):
-        return self.linear(input) + self.lora_up(self.lora_down(input)) * self.scale
+        return linear(inputs) + lora_up(lora_down(inputs)) * self.scale
 
 
 class FlaxLoraBase(nn.Module):
@@ -82,7 +78,11 @@ class FlaxLoraBase(nn.Module):
         object.__setattr__(lora, "parent", model.parent)
         object.__setattr__(lora, "scope", model.scope)
 
-        lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
+        lora_params = {}
+        import pdb
+
+        pdb.set_trace()
+        print("lora_params", lora_params)
         lora_params["linear"] = params
         lora = lora.bind({"params": lora_params})
 
@@ -133,11 +133,6 @@ class LoRA:
 
 
 def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
-    if hasattr(model, "init_weights"):
-        weight_shape = cast(FlaxModelMixin, instance or model()).init_weights(jax.random.PRNGKey(0))
-    else:
-        weight_shape = None
-
     class _FlaxLora(model, LoRA):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -145,10 +140,8 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
         def wrap(self):
             for n, attr in self._state.children.items():
                 if not isinstance(attr, nn.Module):
-                    print("HERE2", n.__class__.__name__)
                     continue
                 if isinstance(attr, LoRA):
-                    print("HERE3", n)
                     continue
 
                 if self.__class__.__name__ in targets and isinstance(attr, nn.Dense):
@@ -164,36 +157,13 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                     klass = wrap_in_lora(attr.__class__, instance=attr, targets=targets)
                     instance = klass(**subattrs)
 
-                print(
-                    "HERE", n, instance.__class__.__name__, self.__class__.__name__, targets, attr.__class__.__name__
-                )
-
                 object.__setattr__(instance, "parent", attr.parent)
                 object.__setattr__(instance, "scope", attr.scope)
 
                 replace_module(self, attr, instance)
 
-        # def clone(self, *, parent=None, **updates):
-        #     """Creates a clone of this Module, with optionally updated arguments.
-
-        #     Args:
-        #     parent: The parent of the clone. The clone will have no parent if no
-        #         explicit parent is specified.
-        #     **updates: Attribute updates.
-        #     Returns:
-        #     A clone of the this Module with the updated attributes and parent.
-        #     """
-        #     self.wrap()
-        #     attrs = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
-        #     attrs.update(parent=parent, **updates)
-        #     return self.__class__(**attrs)
-
         def setup(self):
             super().setup()
-            if weight_shape:
-                FlaxLoraBase.inject(weight_shape, self, targets=targets)
-            else:
-                print("NOT INJECTING", self.name)
             self.wrap()
 
     _FlaxLora.__name__ = f"{model.__name__}Lora"

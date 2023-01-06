@@ -4,7 +4,7 @@ import pdb
 import jax
 import optax
 from diffusers import FlaxUNet2DConditionModel
-from diffusers.experimental.lora.linear_with_lora_flax import FlaxLora
+from diffusers.experimental.lora.linear_with_lora_flax import FlaxLinearWithLora, FlaxLora
 from flax.training import train_state
 from jax.config import config
 from jax.experimental.compilation_cache import compilation_cache as cc
@@ -28,4 +28,6 @@ if __name__ == "__main__":
 
     bound = unet.bind({"params": unet_params})
     bound.init_weights(jax.random.PRNGKey(0))
+
+    assert isinstance(bound.up_blocks[1].attentions[1].transformer_blocks[0].attn1.query, FlaxLinearWithLora)
     pdb.set_trace()
