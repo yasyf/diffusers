@@ -15,13 +15,13 @@ def replace_module(parent, old_child, new_child):
     for k, v in parent.__dict__.items():
         if isinstance(v, nn.Module) and v.name == old_child.name:
             object.__setattr__(parent, k, new_child)
-        elif isinstance(v, (list, tuple)):
+        elif isinstance(v, tuple):
             print(k)
             for i, c in enumerate(v):
                 if isinstance(c, nn.Module):
                     print(c.name, old_child.name)
                 if isinstance(c, nn.Module) and c.name == old_child.name:
-                    parent.__dict__[k][i] = new_child
+                    parent.__dict__[k] = v[:i] + (new_child,) + v[i + 1 :]
 
     parent._state.children[old_child.name] = new_child
 
