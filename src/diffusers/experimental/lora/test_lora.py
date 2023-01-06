@@ -11,6 +11,7 @@ from jax.experimental.compilation_cache import compilation_cache as cc
 
 
 config.update("jax_traceback_filtering", "off")
+config.update("jax_experimental_subjaxpr_lowering_cache", True)
 cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ from flax import jax_utils
 from flax.training import train_state
 from flax.training.common_utils import shard
 from huggingface_hub import HfFolder, Repository, whoami
+from jax.config import config
 from jax.experimental.compilation_cache import compilation_cache as cc
 from PIL import Image
 from torchvision import transforms
@@ -41,6 +42,7 @@ check_min_version("0.10.0.dev0")
 
 # Cache compiled models across invocations of this script.
 cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
+config.update("jax_experimental_subjaxpr_lowering_cache", True)
 
 logger = logging.getLogger(__name__)
 
@@ -599,7 +601,6 @@ def main():
                 loss = loss + args.prior_loss_weight * prior_loss
             else:
                 jax.debug.print("{target}, {model_pred}", target=target, model_pred=model_pred)
-                jax.debug.breakpoint()
                 loss = (target - model_pred) ** 2
                 loss = loss.mean()
 
