@@ -28,6 +28,7 @@ def replace_module(parent, old_child, new_child):
 
 class FlaxLinearWithLora(nn.Module):
     features: int
+    in_features: int = -1
     rank: int = 5
     scale: float = 1.0
     use_bias: bool = True
@@ -39,6 +40,9 @@ class FlaxLinearWithLora(nn.Module):
         lora_down = nn.Dense(features=self.rank, use_bias=False)
 
         return linear(inputs) + lora_up(lora_down(inputs)) * self.scale
+
+    def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
+        return self.init(rng, jnp.zeros((self.in_features, self.features)))
 
 
 class FlaxLoraBase(nn.Module):
@@ -70,6 +74,7 @@ class FlaxLoraBase(nn.Module):
         parent._state.is_initialized = False
         parent._state.in_setup = True
         lora = FlaxLinearWithLora(
+            in_features=jnp.shape(params["kernel"])[-1],
             features=model.features,
             use_bias=model.use_bias,
             name=name,
@@ -78,7 +83,7 @@ class FlaxLoraBase(nn.Module):
         object.__setattr__(lora, "parent", model.parent)
         object.__setattr__(lora, "scope", model.scope)
 
-        lora_params = {}
+        lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         import pdb
 
         pdb.set_trace()
