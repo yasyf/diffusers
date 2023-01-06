@@ -8,6 +8,7 @@ import jax
 import jax.numpy as jnp
 from diffusers.models.modeling_flax_utils import FlaxModelMixin
 from flax.core.frozen_dict import FrozenDict
+from flax.linen.initializers import zeros
 from flax.traverse_util import flatten_dict, unflatten_dict
 
 
@@ -35,9 +36,9 @@ class FlaxLinearWithLora(nn.Module):
 
     @nn.compact
     def __call__(self, inputs):
-        linear = nn.Dense(features=self.features, use_bias=self.use_bias)
-        lora_up = nn.Dense(features=self.features, use_bias=False)
-        lora_down = nn.Dense(features=self.rank, use_bias=False)
+        linear = nn.Dense(features=self.features, use_bias=self.use_bias, name="linear")
+        lora_up = nn.Dense(features=self.features, use_bias=False, kernel_init=zeros, name="lora_up")
+        lora_down = nn.Dense(features=self.rank, use_bias=False, name="lora_down")
 
         return linear(inputs) + lora_up(lora_down(inputs)) * self.scale
 
