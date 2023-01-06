@@ -80,6 +80,7 @@ class FlaxLoraBase(nn.Module):
             parent=None,
         )
         object.__setattr__(lora, "parent", model.parent)
+        object.__setattr__(lora, "scope", model.scope)
 
         lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
         lora_params["linear"] = params
@@ -158,25 +159,27 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
 
                 replace_module(self, attr, instance)
 
-        def clone(self, *, parent=None, **updates):
-            """Creates a clone of this Module, with optionally updated arguments.
+        # def clone(self, *, parent=None, **updates):
+        #     """Creates a clone of this Module, with optionally updated arguments.
 
-            Args:
-            parent: The parent of the clone. The clone will have no parent if no
-                explicit parent is specified.
-            **updates: Attribute updates.
-            Returns:
-            A clone of the this Module with the updated attributes and parent.
-            """
-            self.wrap()
-            attrs = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
-            attrs.update(parent=parent, **updates)
-            return self.__class__(**attrs)
+        #     Args:
+        #     parent: The parent of the clone. The clone will have no parent if no
+        #         explicit parent is specified.
+        #     **updates: Attribute updates.
+        #     Returns:
+        #     A clone of the this Module with the updated attributes and parent.
+        #     """
+        #     self.wrap()
+        #     attrs = {f.name: getattr(self, f.name) for f in dataclasses.fields(self) if f.init}
+        #     attrs.update(parent=parent, **updates)
+        #     return self.__class__(**attrs)
 
         def setup(self):
             super().setup()
             if weight_shape:
                 FlaxLoraBase.inject(weight_shape, self, targets=targets)
+            else:
+                print("NOT INJECTING", self.name)
             self.wrap()
 
     _FlaxLora.__name__ = f"{model.__name__}Lora"
