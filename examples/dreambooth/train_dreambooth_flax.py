@@ -600,7 +600,6 @@ def main():
                 # Add the prior loss to the instance loss.
                 loss = loss + args.prior_loss_weight * prior_loss
             else:
-                jax.debug.print("{target}, {model_pred}", target=target, model_pred=model_pred)
                 loss = (target - model_pred) ** 2
                 loss = loss.mean()
 
