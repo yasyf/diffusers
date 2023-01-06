@@ -42,9 +42,6 @@ class FlaxLinearWithLora(nn.Module):
 
         return linear(inputs) + lora_up(lora_down(inputs)) * self.scale
 
-    def init_weights(self, rng: jax.random.PRNGKey) -> FrozenDict:
-        return self.init(rng, jnp.zeros((self.in_features, self.features)))
-
 
 class FlaxLoraBase(nn.Module):
     @staticmethod
@@ -88,6 +85,10 @@ class FlaxLoraBase(nn.Module):
         # print("lora_params", lora_params)
         lora_params = {}
         lora_params["linear"] = params
+        lora_params["lora_down"] = {
+            "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
+        }
+        lora_params["lora_up"] = {"kernel": jnp.zeros(jax.random.PRNGKey(0), (lora.rank, lora.features))}
         lora = lora.bind({"params": lora_params})
 
         replace_module(parent, model, lora)
@@ -97,7 +98,7 @@ class FlaxLoraBase(nn.Module):
         parent._state.is_initialized = True
 
         for n in ["lora_up", "lora_down"]:
-            params_to_optimize[n] = {"kernel": True, "bias": True}
+            params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
         params_to_optimize["linear"] = {k: False for k in lora_params["linear"].keys()}
 
         return lora_params, dict(params_to_optimize)
@@ -109,11 +110,10 @@ class FlaxLoraBase(nn.Module):
         targets: List[str],
         is_target: bool = False,
     ):
-        if not model._state.in_setup:
-            print("CLONING MODEL", model.name)
-            model = model.bind({"params": params})
-            if hasattr(model, "init_weights"):
-                model.init_weights(jax.random.PRNGKey(0))
+        print("CLONING MODEL", model.name)
+        model = model.bind({"params": params})
+        if hasattr(model, "init_weights"):
+            model.init_weights(jax.random.PRNGKey(0))
 
         params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
