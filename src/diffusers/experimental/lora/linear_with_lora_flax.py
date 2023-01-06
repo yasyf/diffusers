@@ -106,6 +106,7 @@ class FlaxLoraBase(nn.Module):
         is_target: bool = False,
     ):
         if not model._state.in_setup:
+            print("CLONING MODEL", model.name)
             model = model.bind({"params": params})
             if hasattr(model, "init_weights"):
                 model.init_weights(jax.random.PRNGKey(0))
