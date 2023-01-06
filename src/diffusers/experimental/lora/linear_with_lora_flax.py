@@ -107,6 +107,7 @@ class FlaxLoraBase(nn.Module):
         targets: List[str],
         is_target: bool = False,
     ):
+
         model = model.bind({"params": params})
         if hasattr(model, "init_weights"):
             model.init_weights(jax.random.PRNGKey(0))
@@ -170,7 +171,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
     return _FlaxLora
 
 
-def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock", "FlaxTransformer2DModel", "FlaxGEGLU"]):
+def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock"]):
     targets = targets + [f"{t}Lora" for t in targets]
 
     class _LoraFlax(wrap_in_lora(model, targets=targets)):
