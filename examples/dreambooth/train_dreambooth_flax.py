@@ -29,6 +29,7 @@ from flax import jax_utils
 from flax.training import train_state
 from flax.training.common_utils import shard
 from huggingface_hub import HfFolder, Repository, whoami
+from jax.config import config
 from jax.experimental.compilation_cache import compilation_cache as cc
 from PIL import Image
 from torchvision import transforms
@@ -43,6 +44,8 @@ check_min_version("0.10.0.dev0")
 cc.initialize_cache(os.path.expanduser("~/.cache/jax/compilation_cache"))
 
 logger = logging.getLogger(__name__)
+
+config.update("jax_experimental_subjaxpr_lowering_cache", True)
 
 
 def parse_args():
