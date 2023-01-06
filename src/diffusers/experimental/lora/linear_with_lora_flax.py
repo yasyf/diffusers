@@ -82,10 +82,9 @@ class FlaxLoraBase(nn.Module):
         # print("lora_params", lora_params)
         lora_params = {}
         lora_params["linear"] = params
-        # lora_params["lora_down"] = {
-        #     "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
-        # }
-        lora_params["lora_down"] = {"kernel": jnp.zeros((lora.rank, lora.features))}
+        lora_params["lora_down"] = {
+            "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
+        }
         lora_params["lora_up"] = {"kernel": jnp.zeros((lora.rank, lora.features))}
         lora = lora.bind({"params": lora_params})
 
@@ -117,7 +116,6 @@ class FlaxLoraBase(nn.Module):
 
         for name, child in FlaxLoraBase._get_children(model).items():
             if is_target:
-                print("INJECTING", name)
                 results = FlaxLoraBase._wrap_dense(params.get(name, {}), model, child, name)
             elif child.__class__.__name__ in targets:
                 results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets, is_target=True)
@@ -172,7 +170,7 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
     return _FlaxLora
 
 
-def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock", "FlaxGEGLU"]):
+def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock", "FlaxTransformer2DModel", "FlaxGEGLU"]):
     targets = targets + [f"{t}Lora" for t in targets]
 
     class _LoraFlax(wrap_in_lora(model, targets=targets)):
