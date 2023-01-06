@@ -75,7 +75,7 @@ class FlaxLoraBase(nn.Module):
         parent._state.is_initialized = False
         parent._state.in_setup = True
         lora = FlaxLinearWithLora(
-            in_features=jnp.shape(params["kernel"])[-1],
+            in_features=jnp.shape(params["kernel"])[0],
             features=model.features,
             use_bias=model.use_bias,
             name=name,
@@ -97,7 +97,7 @@ class FlaxLoraBase(nn.Module):
         parent._state.is_initialized = True
 
         for n in ["lora_up", "lora_down"]:
-            params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
+            params_to_optimize[n] = {"kernel": True, "bias": True}
         params_to_optimize["linear"] = {k: False for k in lora_params["linear"].keys()}
 
         return lora_params, dict(params_to_optimize)
