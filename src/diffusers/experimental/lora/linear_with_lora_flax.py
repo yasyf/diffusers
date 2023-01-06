@@ -84,8 +84,9 @@ class FlaxLoraBase(nn.Module):
         object.__setattr__(lora, "parent", model.parent)
         object.__setattr__(lora, "scope", model.scope)
 
-        lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
-        print("lora_params", lora_params)
+        # lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
+        # print("lora_params", lora_params)
+        lora_params = {}
         lora_params["linear"] = params
         lora = lora.bind({"params": lora_params})
 
