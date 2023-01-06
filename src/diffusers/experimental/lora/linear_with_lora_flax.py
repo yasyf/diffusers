@@ -17,10 +17,7 @@ def replace_module(parent, old_child, new_child):
         if isinstance(v, nn.Module) and v.name == old_child.name:
             object.__setattr__(parent, k, new_child)
         elif isinstance(v, tuple):
-            print(k)
             for i, c in enumerate(v):
-                if isinstance(c, nn.Module):
-                    print(c.name, old_child.name)
                 if isinstance(c, nn.Module) and c.name == old_child.name:
                     object.__setattr__(parent, k, v[:i] + (new_child,) + v[i + 1 :])
 
@@ -110,7 +107,6 @@ class FlaxLoraBase(nn.Module):
         targets: List[str],
         is_target: bool = False,
     ):
-        print("CLONING MODEL", model.name)
         model = model.bind({"params": params})
         if hasattr(model, "init_weights"):
             model.init_weights(jax.random.PRNGKey(0))
