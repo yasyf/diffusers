@@ -22,9 +22,15 @@ def replace_module(parent, old_child, new_child):
                     object.__setattr__(parent, k, v[:i] + (new_child,) + v[i + 1 :])
 
     parent._state.children[old_child.name] = new_child
+    object.__setattr__(new_child, "parent", old_child.parent)
+    object.__setattr__(new_child, "scope", old_child.scope)
 
 
-class FlaxLinearWithLora(nn.Module):
+class LoRA:
+    pass
+
+
+class FlaxLinearWithLora(nn.Module, LoRA):
     features: int
     in_features: int = -1
     rank: int = 5
@@ -40,7 +46,7 @@ class FlaxLinearWithLora(nn.Module):
         return linear(inputs) + lora_up(lora_down(inputs)) * self.scale
 
 
-class FlaxLoraBase(nn.Module):
+class FlaxLoraUtils(nn.Module):
     @staticmethod
     def _get_children(model: nn.Module) -> Dict[str, nn.Module]:
         model._try_setup(shallow=True)
@@ -51,23 +57,6 @@ class FlaxLoraBase(nn.Module):
         if not isinstance(model, nn.Dense):
             return params, {}
 
-        params_to_optimize = defaultdict(dict)
-
-        # model.parent._state.in_setup = True
-        # model.parent._state.setup_called = SetupState.TRANSFORMED
-
-        # object.__setattr__(lora, "parent", model.parent)
-        # setattr(parent, name, lora)
-        # for k, v in parent.__dict__.items():
-        #     if isinstance(v, nn.Module) and v.name == name:
-        #         setattr(model.parent, k, lora)
-        # lora.__post_init__()
-
-        # model.parent._state.setup_called = SetupState.DONE
-        # model.parent._state.in_setup = False
-
-        parent._state.is_initialized = False
-        parent._state.in_setup = True
         lora = FlaxLinearWithLora(
             in_features=jnp.shape(params["kernel"])[0],
             features=model.features,
@@ -75,25 +64,16 @@ class FlaxLoraBase(nn.Module):
             name=name,
             parent=None,
         )
-        object.__setattr__(lora, "parent", model.parent)
-        object.__setattr__(lora, "scope", model.scope)
 
-        # lora_params = lora.init_weights(jax.random.PRNGKey(0)).unfreeze()["params"]
-        # print("lora_params", lora_params)
-        lora_params = {}
-        lora_params["linear"] = params
-        lora_params["lora_down"] = {
-            "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
+        lora_params = {
+            "linear": params,
+            "lora_down": {
+                "kernel": jax.random.normal(jax.random.PRNGKey(0), (lora.in_features, lora.rank)) * 1.0 / lora.rank
+            },
+            "lora_up": {"kernel": jnp.zeros((lora.rank, lora.features))},
         }
-        lora_params["lora_up"] = {"kernel": jnp.zeros((lora.rank, lora.features))}
-        lora = lora.bind({"params": lora_params})
 
-        replace_module(parent, model, lora)
-        lora.__post_init__()
-
-        parent._state.in_setup = False
-        parent._state.is_initialized = True
-
+        params_to_optimize = defaultdict(dict)
         for n in ["lora_up", "lora_down"]:
             params_to_optimize[n] = {k: True for k in lora_params[n].keys()}
         params_to_optimize["linear"] = {k: False for k in lora_params["linear"].keys()}
@@ -101,7 +81,7 @@ class FlaxLoraBase(nn.Module):
         return lora_params, dict(params_to_optimize)
 
     @staticmethod
-    def inject(
+    def wrap(
         params: Union[dict, FrozenDict],
         model: nn.Module,
         targets: List[str],
@@ -115,30 +95,26 @@ class FlaxLoraBase(nn.Module):
         params = params.unfreeze() if isinstance(params, FrozenDict) else copy.copy(params)
         params_to_optimize = {}
 
-        for name, child in FlaxLoraBase._get_children(model).items():
+        for name, child in FlaxLoraUtils._get_children(model).items():
             if is_target:
-                results = FlaxLoraBase._wrap_dense(params.get(name, {}), model, child, name)
+                results = FlaxLoraUtils._wrap_dense(params.get(name, {}), model, child, name)
             elif child.__class__.__name__ in targets:
-                results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets, is_target=True)
+                results = FlaxLoraUtils.wrap(params.get(name, {}), child, targets=targets, is_target=True)
             else:
-                results = FlaxLoraBase.inject(params.get(name, {}), child, targets=targets)
+                results = FlaxLoraUtils.wrap(params.get(name, {}), child, targets=targets)
 
             params[name], params_to_optimize[name] = results
 
         return params, params_to_optimize
 
 
-class LoRA:
-    pass
-
-
-def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
+def wrap_in_lora(model: Type[nn.Module], targets: List[str]):
     class _FlaxLora(model, LoRA):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
 
         def wrap(self):
-            for n, attr in self._state.children.items():
+            for attr in self._state.children.values():
                 if not isinstance(attr, nn.Module):
                     continue
                 if isinstance(attr, LoRA):
@@ -154,11 +130,8 @@ def wrap_in_lora(model: Type[nn.Module], targets: List[str], instance=None):
                 else:
                     subattrs = {f.name: getattr(attr, f.name) for f in dataclasses.fields(attr) if f.init}
                     subattrs["parent"] = None
-                    klass = wrap_in_lora(attr.__class__, instance=attr, targets=targets)
+                    klass = wrap_in_lora(attr.__class__, targets=targets)
                     instance = klass(**subattrs)
-
-                object.__setattr__(instance, "parent", attr.parent)
-                object.__setattr__(instance, "scope", attr.scope)
 
                 replace_module(self, attr, instance)
 
@@ -181,12 +154,9 @@ def FlaxLora(model: Type[nn.Module], targets=["FlaxAttentionBlock", "FlaxGEGLU"]
         @classmethod
         def from_pretrained(cls, *args, **kwargs):
             instance, params = cast(Type[FlaxModelMixin], model).from_pretrained(*args, **kwargs)
-
-            params, mask = FlaxLoraBase.inject(params, instance, targets=targets)
-
+            params, mask = FlaxLoraUtils.wrap(params, instance, targets=targets)
             subattrs = {f.name: getattr(instance, f.name) for f in dataclasses.fields(instance) if f.init}
             instance = cls(**subattrs)
-
             mask_values = flatten_dict(mask)
             object.__setattr__(
                 instance,
