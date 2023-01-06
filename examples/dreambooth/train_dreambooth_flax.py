@@ -553,6 +553,10 @@ def main():
     )
 
     # Load models and create wrapper for stable diffusion
+    unet, unet_params = FlaxUNet2DConditionModel.from_pretrained(
+        args.pretrained_model_name_or_path, subfolder="unet", dtype=weight_dtype, revision=args.revision
+    )
+
     text_encoder = FlaxCLIPTextModel.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="text_encoder", dtype=weight_dtype, revision=args.revision
     )
